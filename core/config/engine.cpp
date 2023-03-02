@@ -1,39 +1,42 @@
-/*************************************************************************/
-/*  engine.cpp                                                           */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  engine.cpp                                                            */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "engine.h"
 
 #include "core/authors.gen.h"
 #include "core/config/project_settings.h"
 #include "core/donors.gen.h"
+#include "core/io/json.h"
 #include "core/license.gen.h"
+#include "core/os/os.h"
+#include "core/variant/typed_array.h"
 #include "core/version.h"
 
 void Engine::set_physics_ticks_per_second(int p_ips) {
@@ -43,6 +46,15 @@ void Engine::set_physics_ticks_per_second(int p_ips) {
 
 int Engine::get_physics_ticks_per_second() const {
 	return ips;
+}
+
+void Engine::set_max_physics_steps_per_frame(int p_max_physics_steps) {
+	ERR_FAIL_COND_MSG(p_max_physics_steps <= 0, "Maximum number of physics steps per frame must be greater than 0.");
+	max_physics_steps_per_frame = p_max_physics_steps;
+}
+
+int Engine::get_max_physics_steps_per_frame() const {
+	return max_physics_steps_per_frame;
 }
 
 void Engine::set_physics_jitter_fix(double p_threshold) {
@@ -56,12 +68,12 @@ double Engine::get_physics_jitter_fix() const {
 	return physics_jitter_fix;
 }
 
-void Engine::set_target_fps(int p_fps) {
-	_target_fps = p_fps > 0 ? p_fps : 0;
+void Engine::set_max_fps(int p_fps) {
+	_max_fps = p_fps > 0 ? p_fps : 0;
 }
 
-int Engine::get_target_fps() const {
-	return _target_fps;
+int Engine::get_max_fps() const {
+	return _max_fps;
 }
 
 uint64_t Engine::get_frames_drawn() {
@@ -134,8 +146,8 @@ Dictionary Engine::get_author_info() const {
 	return dict;
 }
 
-Array Engine::get_copyright_info() const {
-	Array components;
+TypedArray<Dictionary> Engine::get_copyright_info() const {
+	TypedArray<Dictionary> components;
 	for (int component_index = 0; component_index < COPYRIGHT_INFO_COUNT; component_index++) {
 		const ComponentCopyright &cp_info = COPYRIGHT_INFO[component_index];
 		Dictionary component_dict;
@@ -181,6 +193,42 @@ String Engine::get_license_text() const {
 	return String(GODOT_LICENSE_TEXT);
 }
 
+String Engine::get_architecture_name() const {
+#if defined(__x86_64) || defined(__x86_64__) || defined(__amd64__) || defined(_M_X64)
+	return "x86_64";
+
+#elif defined(__i386) || defined(__i386__) || defined(_M_IX86)
+	return "x86_32";
+
+#elif defined(__aarch64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
+	return "arm64";
+
+#elif defined(__arm__) || defined(_M_ARM)
+	return "arm32";
+
+#elif defined(__riscv)
+#if __riscv_xlen == 8
+	return "rv64";
+#else
+	return "riscv";
+#endif
+
+#elif defined(__powerpc__)
+#if defined(__powerpc64__)
+	return "ppc64";
+#else
+	return "ppc";
+#endif
+
+#elif defined(__wasm__)
+#if defined(__wasm64__)
+	return "wasm64";
+#elif defined(__wasm32__)
+	return "wasm32";
+#endif
+#endif
+}
+
 bool Engine::is_abort_on_gpu_errors_enabled() const {
 	return abort_on_gpu_errors;
 }
@@ -194,11 +242,11 @@ bool Engine::is_validation_layers_enabled() const {
 }
 
 void Engine::set_print_error_messages(bool p_enabled) {
-	_print_error_enabled = p_enabled;
+	CoreGlobals::print_error_enabled = p_enabled;
 }
 
 bool Engine::is_printing_error_messages() const {
-	return _print_error_enabled;
+	return CoreGlobals::print_error_enabled;
 }
 
 void Engine::add_singleton(const Singleton &p_singleton) {
@@ -246,6 +294,14 @@ void Engine::get_singletons(List<Singleton> *p_singletons) {
 	}
 }
 
+String Engine::get_write_movie_path() const {
+	return write_movie_path;
+}
+
+void Engine::set_write_movie_path(const String &p_path) {
+	write_movie_path = p_path;
+}
+
 void Engine::set_shader_cache_path(const String &p_path) {
 	shader_cache_path = p_path;
 }
@@ -261,6 +317,43 @@ Engine *Engine::get_singleton() {
 
 Engine::Engine() {
 	singleton = this;
+}
+
+void Engine::startup_begin() {
+	startup_benchmark_total_from = OS::get_singleton()->get_ticks_usec();
+}
+
+void Engine::startup_benchmark_begin_measure(const String &p_what) {
+	startup_benchmark_section = p_what;
+	startup_benchmark_from = OS::get_singleton()->get_ticks_usec();
+}
+void Engine::startup_benchmark_end_measure() {
+	uint64_t total = OS::get_singleton()->get_ticks_usec() - startup_benchmark_from;
+	double total_f = double(total) / double(1000000);
+
+	startup_benchmark_json[startup_benchmark_section] = total_f;
+}
+
+void Engine::startup_dump(const String &p_to_file) {
+	uint64_t total = OS::get_singleton()->get_ticks_usec() - startup_benchmark_total_from;
+	double total_f = double(total) / double(1000000);
+	startup_benchmark_json["total_time"] = total_f;
+
+	if (!p_to_file.is_empty()) {
+		Ref<FileAccess> f = FileAccess::open(p_to_file, FileAccess::WRITE);
+		if (f.is_valid()) {
+			Ref<JSON> json;
+			json.instantiate();
+			f->store_string(json->stringify(startup_benchmark_json, "\t", false, true));
+		}
+	} else {
+		List<Variant> keys;
+		startup_benchmark_json.get_key_list(&keys);
+		print_line("STARTUP BENCHMARK:");
+		for (const Variant &K : keys) {
+			print_line("\t-", K, ": ", startup_benchmark_json[K], +" sec.");
+		}
+	}
 }
 
 Engine::Singleton::Singleton(const StringName &p_name, Object *p_ptr, const StringName &p_class_name) :

@@ -1,48 +1,45 @@
-/*************************************************************************/
-/*  editor_file_dialog.h                                                 */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  editor_file_dialog.h                                                  */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef EDITOR_FILE_DIALOG_H
 #define EDITOR_FILE_DIALOG_H
 
 #include "core/io/dir_access.h"
-#include "editor/plugins/editor_preview_plugins.h"
-#include "scene/gui/box_container.h"
 #include "scene/gui/dialogs.h"
-#include "scene/gui/item_list.h"
-#include "scene/gui/line_edit.h"
-#include "scene/gui/option_button.h"
-#include "scene/gui/separator.h"
-#include "scene/gui/split_container.h"
-#include "scene/gui/texture_rect.h"
 
 class DependencyRemoveDialog;
+class HSplitContainer;
+class ItemList;
+class OptionButton;
+class PopupMenu;
+class TextureRect;
 
 class EditorFileDialog : public ConfirmationDialog {
 	GDCLASS(EditorFileDialog, ConfirmationDialog);
@@ -71,7 +68,7 @@ public:
 	typedef void (*RegisterFunc)(EditorFileDialog *);
 
 	static GetIconFunc get_icon_func;
-	static GetIconFunc get_large_icon_func;
+	static GetIconFunc get_thumbnail_func;
 	static RegisterFunc register_func;
 	static RegisterFunc unregister_func;
 
@@ -148,6 +145,33 @@ private:
 	bool disable_overwrite_warning = false;
 	bool invalidated = true;
 
+	struct ThemeCache {
+		Ref<Texture2D> parent_folder;
+		Ref<Texture2D> forward_folder;
+		Ref<Texture2D> back_folder;
+		Ref<Texture2D> reload;
+		Ref<Texture2D> toggle_hidden;
+		Ref<Texture2D> favorite;
+		Ref<Texture2D> mode_thumbnails;
+		Ref<Texture2D> mode_list;
+		Ref<Texture2D> favorites_up;
+		Ref<Texture2D> favorites_down;
+
+		Ref<Texture2D> folder;
+		Color folder_icon_color;
+
+		Ref<Texture2D> action_copy;
+		Ref<Texture2D> action_delete;
+		Ref<Texture2D> filesystem;
+
+		Ref<Texture2D> folder_medium_thumbnail;
+		Ref<Texture2D> file_medium_thumbnail;
+		Ref<Texture2D> folder_big_thumbnail;
+		Ref<Texture2D> file_big_thumbnail;
+
+		Ref<Texture2D> progress[8]{};
+	} theme_cache;
+
 	void update_dir();
 	void update_file_name();
 	void update_file_list();
@@ -161,6 +185,7 @@ private:
 	void _favorite_move_up();
 	void _favorite_move_down();
 
+	void _update_recent();
 	void _recent_selected(int p_idx);
 
 	void _item_selected(int p_item);
@@ -174,7 +199,6 @@ private:
 
 	void _select_drive(int p_idx);
 	void _dir_submitted(String p_dir);
-	void _file_submitted(const String &p_file);
 	void _action_pressed();
 	void _save_confirm_pressed();
 	void _cancel_pressed();
@@ -206,13 +230,20 @@ private:
 	bool _is_open_should_be_disabled();
 
 protected:
+	virtual void _update_theme_item_cache() override;
+
 	void _notification(int p_what);
 	static void _bind_methods();
 
 public:
+	// Public for use with callable_mp.
+	void _file_submitted(const String &p_file);
+
 	void popup_file_dialog();
 	void clear_filters();
 	void add_filter(const String &p_filter, const String &p_description = "");
+	void set_filters(const Vector<String> &p_filters);
+	Vector<String> get_filters() const;
 
 	void set_enable_multiple_selection(bool p_enable);
 	Vector<String> get_selected_files() const;

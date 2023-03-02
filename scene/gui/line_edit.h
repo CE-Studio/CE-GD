@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  line_edit.h                                                          */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  line_edit.h                                                           */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef LINE_EDIT_H
 #define LINE_EDIT_H
@@ -46,11 +46,13 @@ public:
 		MENU_SELECT_ALL,
 		MENU_UNDO,
 		MENU_REDO,
+		MENU_SUBMENU_TEXT_DIR,
 		MENU_DIR_INHERITED,
 		MENU_DIR_AUTO,
 		MENU_DIR_LTR,
 		MENU_DIR_RTL,
 		MENU_DISPLAY_UCC,
+		MENU_SUBMENU_INSERT_UCC,
 		MENU_INSERT_LRM,
 		MENU_INSERT_RLM,
 		MENU_INSERT_LRE,
@@ -70,6 +72,17 @@ public:
 		MENU_MAX
 	};
 
+	enum VirtualKeyboardType {
+		KEYBOARD_TYPE_DEFAULT,
+		KEYBOARD_TYPE_MULTILINE,
+		KEYBOARD_TYPE_NUMBER,
+		KEYBOARD_TYPE_NUMBER_DECIMAL,
+		KEYBOARD_TYPE_PHONE,
+		KEYBOARD_TYPE_EMAIL_ADDRESS,
+		KEYBOARD_TYPE_PASSWORD,
+		KEYBOARD_TYPE_URL
+	};
+
 private:
 	HorizontalAlignment alignment = HORIZONTAL_ALIGNMENT_LEFT;
 
@@ -84,7 +97,7 @@ private:
 	String text;
 	String placeholder;
 	String placeholder_translated;
-	String secret_character = "*";
+	String secret_character = U"•";
 	String ime_text;
 	Point2 ime_selection;
 
@@ -102,7 +115,7 @@ private:
 	bool caret_mid_grapheme_enabled = true;
 
 	int caret_column = 0;
-	int scroll_offset = 0;
+	float scroll_offset = 0.0;
 	int max_length = 0; // 0 for no maximum.
 
 	String language;
@@ -120,6 +133,7 @@ private:
 	bool shortcut_keys_enabled = true;
 
 	bool virtual_keyboard_enabled = true;
+	VirtualKeyboardType virtual_keyboard_type = KEYBOARD_TYPE_DEFAULT;
 
 	bool middle_mouse_paste_enabled = true;
 
@@ -141,8 +155,7 @@ private:
 
 	struct TextOperation {
 		int caret_column = 0;
-		int scroll_offset = 0;
-		int cached_width = 0;
+		float scroll_offset = 0.0;
 		String text;
 	};
 	List<TextOperation> undo_stack;
@@ -159,17 +172,45 @@ private:
 	bool caret_blink_enabled = false;
 	bool caret_force_displayed = false;
 	bool draw_caret = true;
-	float caret_blink_speed = 0.65;
+	float caret_blink_interval = 0.65;
 	double caret_blink_timer = 0.0;
-	bool caret_blinking = false;
+	bool caret_can_draw = false;
 
-	bool _is_over_clear_button(const Point2 &p_pos) const;
+	bool pending_select_all_on_focus = false;
+	bool select_all_on_focus = false;
+
+	struct ThemeCache {
+		Ref<StyleBox> normal;
+		Ref<StyleBox> read_only;
+		Ref<StyleBox> focus;
+
+		Ref<Font> font;
+		int font_size = 0;
+		Color font_color;
+		Color font_uneditable_color;
+		Color font_selected_color;
+		int font_outline_size;
+		Color font_outline_color;
+		Color font_placeholder_color;
+		int caret_width = 0;
+		Color caret_color;
+		int minimum_character_width = 0;
+		Color selection_color;
+
+		Ref<Texture2D> clear_icon;
+		Color clear_button_color;
+		Color clear_button_color_pressed;
+
+		float base_scale = 1.0;
+	} theme_cache;
 
 	void _clear_undo_stack();
 	void _clear_redo();
 	void _create_undo_state();
 
 	Key _get_menu_action_accelerator(const String &p_action);
+	void _generate_context_menu();
+	void _update_context_menu();
 
 	void _shape();
 	void _fit_to_width();
@@ -180,14 +221,15 @@ private:
 	void shift_selection_check_post(bool);
 
 	void selection_fill_at_caret();
-	void set_scroll_offset(int p_pos);
-	int get_scroll_offset() const;
+	void set_scroll_offset(float p_pos);
+	float get_scroll_offset() const;
 
 	void set_caret_at_pixel_pos(int p_x);
-	Vector2i get_caret_pixel_pos();
+	Vector2 get_caret_pixel_pos();
 
 	void _reset_caret_blink_timer();
 	void _toggle_draw_caret();
+	void _validate_caret_can_draw();
 
 	void clear_internal();
 
@@ -201,15 +243,15 @@ private:
 	void _backspace(bool p_word = false, bool p_all_to_left = false);
 	void _delete(bool p_word = false, bool p_all_to_right = false);
 
-	void _ensure_menu();
-
 protected:
+	bool _is_over_clear_button(const Point2 &p_pos) const;
+	virtual void _update_theme_item_cache() override;
 	void _notification(int p_what);
 	static void _bind_methods();
 	virtual void unhandled_key_input(const Ref<InputEvent> &p_event) override;
 	virtual void gui_input(const Ref<InputEvent> &p_event) override;
 
-	void _validate_property(PropertyInfo &property) const override;
+	void _validate_property(PropertyInfo &p_property) const;
 
 public:
 	void set_horizontal_alignment(HorizontalAlignment p_alignment);
@@ -274,8 +316,8 @@ public:
 	bool is_caret_blink_enabled() const;
 	void set_caret_blink_enabled(const bool p_enabled);
 
-	float get_caret_blink_speed() const;
-	void set_caret_blink_speed(const float p_speed);
+	float get_caret_blink_interval() const;
+	void set_caret_blink_interval(const float p_interval);
 
 	void set_caret_force_displayed(const bool p_enabled);
 	bool is_caret_force_displayed() const;
@@ -311,6 +353,9 @@ public:
 	void set_virtual_keyboard_enabled(bool p_enable);
 	bool is_virtual_keyboard_enabled() const;
 
+	void set_virtual_keyboard_type(VirtualKeyboardType p_type);
+	VirtualKeyboardType get_virtual_keyboard_type() const;
+
 	void set_middle_mouse_paste_enabled(bool p_enabled);
 	bool is_middle_mouse_paste_enabled() const;
 
@@ -326,6 +371,10 @@ public:
 	void set_flat(bool p_enabled);
 	bool is_flat() const;
 
+	void set_select_all_on_focus(bool p_enabled);
+	bool is_select_all_on_focus() const;
+	void clear_pending_select_all_on_focus(); // For other controls, e.g. SpinBox.
+
 	virtual bool is_text_field() const override;
 
 	void show_virtual_keyboard();
@@ -335,5 +384,6 @@ public:
 };
 
 VARIANT_ENUM_CAST(LineEdit::MenuItems);
+VARIANT_ENUM_CAST(LineEdit::VirtualKeyboardType);
 
-#endif
+#endif // LINE_EDIT_H

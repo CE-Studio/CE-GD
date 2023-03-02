@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="EditorSyntaxHighlighter" inherits="SyntaxHighlighter" version="4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+<class name="EditorSyntaxHighlighter" inherits="SyntaxHighlighter" version="4.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
 	<brief_description>
 		Base Syntax highlighter resource for the [ScriptEditor].
 	</brief_description>
@@ -17,7 +17,7 @@
 			</description>
 		</method>
 		<method name="_get_supported_languages" qualifiers="virtual const">
-			<return type="Array" />
+			<return type="PackedStringArray" />
 			<description>
 				Virtual method which can be overridden to return the supported language names.
 			</description>

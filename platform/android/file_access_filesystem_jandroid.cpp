@@ -1,36 +1,39 @@
-/*************************************************************************/
-/*  file_access_filesystem_jandroid.cpp                                  */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  file_access_filesystem_jandroid.cpp                                   */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "file_access_filesystem_jandroid.h"
+
 #include "core/os/os.h"
+#include "core/templates/local_vector.h"
 #include "thread_jandroid.h"
+
 #include <unistd.h>
 
 jobject FileAccessFilesystemJAndroid::file_access_handler = nullptr;
@@ -43,6 +46,7 @@ jmethodID FileAccessFilesystemJAndroid::_file_seek_end = nullptr;
 jmethodID FileAccessFilesystemJAndroid::_file_read = nullptr;
 jmethodID FileAccessFilesystemJAndroid::_file_tell = nullptr;
 jmethodID FileAccessFilesystemJAndroid::_file_eof = nullptr;
+jmethodID FileAccessFilesystemJAndroid::_file_set_eof = nullptr;
 jmethodID FileAccessFilesystemJAndroid::_file_close = nullptr;
 jmethodID FileAccessFilesystemJAndroid::_file_write = nullptr;
 jmethodID FileAccessFilesystemJAndroid::_file_flush = nullptr;
@@ -57,7 +61,7 @@ String FileAccessFilesystemJAndroid::get_path_absolute() const {
 	return absolute_path;
 }
 
-Error FileAccessFilesystemJAndroid::_open(const String &p_path, int p_mode_flags) {
+Error FileAccessFilesystemJAndroid::open_internal(const String &p_path, int p_mode_flags) {
 	if (is_open()) {
 		_close();
 	}
@@ -159,11 +163,67 @@ bool FileAccessFilesystemJAndroid::eof_reached() const {
 	}
 }
 
+void FileAccessFilesystemJAndroid::_set_eof(bool eof) {
+	if (_file_set_eof) {
+		ERR_FAIL_COND_MSG(!is_open(), "File must be opened before use.");
+
+		JNIEnv *env = get_jni_env();
+		ERR_FAIL_COND(env == nullptr);
+		env->CallVoidMethod(file_access_handler, _file_set_eof, id, eof);
+	}
+}
+
 uint8_t FileAccessFilesystemJAndroid::get_8() const {
 	ERR_FAIL_COND_V_MSG(!is_open(), 0, "File must be opened before use.");
 	uint8_t byte;
 	get_buffer(&byte, 1);
 	return byte;
+}
+
+String FileAccessFilesystemJAndroid::get_line() const {
+	ERR_FAIL_COND_V_MSG(!is_open(), String(), "File must be opened before use.");
+
+	const size_t buffer_size_limit = 2048;
+	const uint64_t file_size = get_length();
+	const uint64_t start_position = get_position();
+
+	String result;
+	LocalVector<uint8_t> line_buffer;
+	size_t current_buffer_size = 0;
+	uint64_t line_buffer_position = 0;
+
+	while (true) {
+		size_t line_buffer_size = MIN(buffer_size_limit, file_size - get_position());
+		if (line_buffer_size <= 0) {
+			const_cast<FileAccessFilesystemJAndroid *>(this)->_set_eof(true);
+			break;
+		}
+
+		current_buffer_size += line_buffer_size;
+		line_buffer.resize(current_buffer_size);
+
+		uint64_t bytes_read = get_buffer(&line_buffer[line_buffer_position], current_buffer_size - line_buffer_position);
+		if (bytes_read <= 0) {
+			break;
+		}
+
+		for (; bytes_read > 0; line_buffer_position++, bytes_read--) {
+			uint8_t elem = line_buffer[line_buffer_position];
+			if (elem == '\n' || elem == '\0') {
+				// Found the end of the line
+				const_cast<FileAccessFilesystemJAndroid *>(this)->seek(start_position + line_buffer_position + 1);
+				if (result.parse_utf8((const char *)line_buffer.ptr(), line_buffer_position, true)) {
+					return String();
+				}
+				return result;
+			}
+		}
+	}
+
+	if (result.parse_utf8((const char *)line_buffer.ptr(), line_buffer_position, true)) {
+		return String();
+	}
+	return result;
 }
 
 uint64_t FileAccessFilesystemJAndroid::get_buffer(uint8_t *p_dst, uint64_t p_length) const {
@@ -262,6 +322,7 @@ void FileAccessFilesystemJAndroid::setup(jobject p_file_access_handler) {
 	_file_get_size = env->GetMethodID(cls, "fileGetSize", "(I)J");
 	_file_tell = env->GetMethodID(cls, "fileGetPosition", "(I)J");
 	_file_eof = env->GetMethodID(cls, "isFileEof", "(I)Z");
+	_file_set_eof = env->GetMethodID(cls, "setFileEof", "(IZ)V");
 	_file_seek = env->GetMethodID(cls, "fileSeek", "(IJ)V");
 	_file_seek_end = env->GetMethodID(cls, "fileSeekFromEnd", "(IJ)V");
 	_file_read = env->GetMethodID(cls, "fileRead", "(ILjava/nio/ByteBuffer;)I");
@@ -270,6 +331,12 @@ void FileAccessFilesystemJAndroid::setup(jobject p_file_access_handler) {
 	_file_flush = env->GetMethodID(cls, "fileFlush", "(I)V");
 	_file_exists = env->GetMethodID(cls, "fileExists", "(Ljava/lang/String;)Z");
 	_file_last_modified = env->GetMethodID(cls, "fileLastModified", "(Ljava/lang/String;)J");
+}
+
+void FileAccessFilesystemJAndroid::close() {
+	if (is_open()) {
+		_close();
+	}
 }
 
 FileAccessFilesystemJAndroid::FileAccessFilesystemJAndroid() {

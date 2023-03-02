@@ -59,17 +59,15 @@ struct hb_sparseset_t
     hb_copy (o, *this);
   }
 
-  void init_shallow () { s.init (); }
   void init ()
   {
     hb_object_init (this);
-    init_shallow ();
+    s.init ();
   }
-  void fini_shallow () { s.fini (); }
   void fini ()
   {
     hb_object_fini (this);
-    fini_shallow ();
+    s.fini ();
   }
 
   explicit operator bool () const { return !is_empty (); }
@@ -107,10 +105,8 @@ struct hb_sparseset_t
   bool get (hb_codepoint_t g) const { return s.get (g); }
 
   /* Has interface. */
-  static constexpr bool SENTINEL = false;
-  typedef bool value_t;
-  value_t operator [] (hb_codepoint_t k) const { return get (k); }
-  bool has (hb_codepoint_t k) const { return (*this)[k] != SENTINEL; }
+  bool operator [] (hb_codepoint_t k) const { return get (k); }
+  bool has (hb_codepoint_t k) const { return (*this)[k]; }
 
   /* Predicate. */
   bool operator () (hb_codepoint_t k) const { return has (k); }

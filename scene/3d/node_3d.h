@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  node_3d.h                                                            */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  node_3d.h                                                             */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef NODE_3D_H
 #define NODE_3D_H
@@ -61,18 +61,9 @@ public:
 		ROTATION_EDIT_MODE_BASIS,
 	};
 
-	enum RotationOrder {
-		ROTATION_ORDER_XYZ,
-		ROTATION_ORDER_XZY,
-		ROTATION_ORDER_YXZ,
-		ROTATION_ORDER_YZX,
-		ROTATION_ORDER_ZXY,
-		ROTATION_ORDER_ZYX
-	};
-
 private:
-	// For the sake of ease of use, Node3D can operate with Transforms (Basis+Origin), Quaterinon/Scale and Euler Rotation/Scale.
-	// Transform and Quaterinon are stored in data.local_transform Basis (so quaternion is not really stored, but converted back/forth from 3x3 matrix on demand).
+	// For the sake of ease of use, Node3D can operate with Transforms (Basis+Origin), Quaternion/Scale and Euler Rotation/Scale.
+	// Transform and Quaternion are stored in data.local_transform Basis (so quaternion is not really stored, but converted back/forth from 3x3 matrix on demand).
 	// Euler needs to be kept separate because converting to Basis and back may result in a different vector (which is troublesome for users
 	// editing in the inspector, not only because of the numerical precision loss but because they expect these rotations to be consistent, or support
 	// "redundant" rotations for animation interpolation, like going from 0 to 720 degrees).
@@ -96,10 +87,11 @@ private:
 
 	mutable SelfList<Node> xform_change;
 
+	// This Data struct is to avoid namespace pollution in derived classes.
 	struct Data {
 		mutable Transform3D global_transform;
 		mutable Transform3D local_transform;
-		mutable Basis::EulerOrder euler_rotation_order = Basis::EULER_ORDER_YXZ;
+		mutable EulerOrder euler_rotation_order = EulerOrder::YXZ;
 		mutable Vector3 euler_rotation;
 		mutable Vector3 scale = Vector3(1, 1, 1);
 		mutable RotationEditMode rotation_edit_mode = ROTATION_EDIT_MODE_EULER;
@@ -155,10 +147,10 @@ protected:
 	void _notification(int p_what);
 	static void _bind_methods();
 
-	virtual void _validate_property(PropertyInfo &property) const override;
+	void _validate_property(PropertyInfo &p_property) const;
 
-	bool property_can_revert(const String &p_name);
-	Variant property_get_revert(const String &p_name);
+	bool _property_can_revert(const StringName &p_name) const;
+	bool _property_get_revert(const StringName &p_name, Variant &r_property) const;
 
 public:
 	enum {
@@ -178,21 +170,25 @@ public:
 	void set_rotation_edit_mode(RotationEditMode p_mode);
 	RotationEditMode get_rotation_edit_mode() const;
 
-	void set_rotation_order(RotationOrder p_order);
+	void set_rotation_order(EulerOrder p_order);
 	void set_rotation(const Vector3 &p_euler_rad);
+	void set_rotation_degrees(const Vector3 &p_euler_degrees);
 	void set_scale(const Vector3 &p_scale);
 
 	void set_global_position(const Vector3 &p_position);
 	void set_global_rotation(const Vector3 &p_euler_rad);
+	void set_global_rotation_degrees(const Vector3 &p_euler_degrees);
 
 	Vector3 get_position() const;
 
-	RotationOrder get_rotation_order() const;
+	EulerOrder get_rotation_order() const;
 	Vector3 get_rotation() const;
+	Vector3 get_rotation_degrees() const;
 	Vector3 get_scale() const;
 
 	Vector3 get_global_position() const;
 	Vector3 get_global_rotation() const;
+	Vector3 get_global_rotation_degrees() const;
 
 	void set_transform(const Transform3D &p_transform);
 	void set_basis(const Basis &p_basis);
@@ -210,13 +206,14 @@ public:
 	virtual void set_transform_gizmo_visible(bool p_enabled) { data.transform_gizmo_visible = p_enabled; };
 	virtual bool is_transform_gizmo_visible() const { return data.transform_gizmo_visible; };
 #endif
+	virtual void reparent(Node *p_parent, bool p_keep_global_transform = true) override;
 
 	void set_disable_gizmos(bool p_enabled);
 	void update_gizmos();
 	void set_subgizmo_selection(Ref<Node3DGizmo> p_gizmo, int p_id, Transform3D p_transform = Transform3D());
 	void clear_subgizmo_selection();
 	Vector<Ref<Node3DGizmo>> get_gizmos() const;
-	Array get_gizmos_bind() const;
+	TypedArray<Node3DGizmo> get_gizmos_bind() const;
 	void add_gizmo(Ref<Node3DGizmo> p_gizmo);
 	void remove_gizmo(Ref<Node3DGizmo> p_gizmo);
 	void clear_gizmos();
@@ -276,6 +273,5 @@ public:
 };
 
 VARIANT_ENUM_CAST(Node3D::RotationEditMode)
-VARIANT_ENUM_CAST(Node3D::RotationOrder)
 
 #endif // NODE_3D_H

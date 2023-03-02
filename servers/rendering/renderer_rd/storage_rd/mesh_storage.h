@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  mesh_storage.h                                                       */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  mesh_storage.h                                                        */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef MESH_STORAGE_RD_H
 #define MESH_STORAGE_RD_H
@@ -40,239 +40,150 @@
 
 namespace RendererRD {
 
-/* Mesh */
-
-enum DefaultRDBuffer {
-	DEFAULT_RD_BUFFER_VERTEX,
-	DEFAULT_RD_BUFFER_NORMAL,
-	DEFAULT_RD_BUFFER_TANGENT,
-	DEFAULT_RD_BUFFER_COLOR,
-	DEFAULT_RD_BUFFER_TEX_UV,
-	DEFAULT_RD_BUFFER_TEX_UV2,
-	DEFAULT_RD_BUFFER_CUSTOM0,
-	DEFAULT_RD_BUFFER_CUSTOM1,
-	DEFAULT_RD_BUFFER_CUSTOM2,
-	DEFAULT_RD_BUFFER_CUSTOM3,
-	DEFAULT_RD_BUFFER_BONES,
-	DEFAULT_RD_BUFFER_WEIGHTS,
-	DEFAULT_RD_BUFFER_MAX,
-};
-
-struct MeshInstance;
-
-struct Mesh {
-	struct Surface {
-		RS::PrimitiveType primitive = RS::PRIMITIVE_POINTS;
-		uint32_t format = 0;
-
-		RID vertex_buffer;
-		RID attribute_buffer;
-		RID skin_buffer;
-		uint32_t vertex_count = 0;
-		uint32_t vertex_buffer_size = 0;
-		uint32_t skin_buffer_size = 0;
-
-		// A different pipeline needs to be allocated
-		// depending on the inputs available in the
-		// material.
-		// There are never that many geometry/material
-		// combinations, so a simple array is the most
-		// cache-efficient structure.
-
-		struct Version {
-			uint32_t input_mask = 0;
-			RD::VertexFormatID vertex_format = 0;
-			RID vertex_array;
-		};
-
-		SpinLock version_lock; //needed to access versions
-		Version *versions = nullptr; //allocated on demand
-		uint32_t version_count = 0;
-
-		RID index_buffer;
-		RID index_array;
-		uint32_t index_count = 0;
-
-		struct LOD {
-			float edge_length = 0.0;
-			uint32_t index_count = 0;
-			RID index_buffer;
-			RID index_array;
-		};
-
-		LOD *lods = nullptr;
-		uint32_t lod_count = 0;
-
-		AABB aabb;
-
-		Vector<AABB> bone_aabbs;
-
-		RID blend_shape_buffer;
-
-		RID material;
-
-		uint32_t render_index = 0;
-		uint64_t render_pass = 0;
-
-		uint32_t multimesh_render_index = 0;
-		uint64_t multimesh_render_pass = 0;
-
-		uint32_t particles_render_index = 0;
-		uint64_t particles_render_pass = 0;
-
-		RID uniform_set;
-	};
-
-	uint32_t blend_shape_count = 0;
-	RS::BlendShapeMode blend_shape_mode = RS::BLEND_SHAPE_MODE_NORMALIZED;
-
-	Surface **surfaces = nullptr;
-	uint32_t surface_count = 0;
-
-	Vector<AABB> bone_aabbs;
-
-	bool has_bone_weights = false;
-
-	AABB aabb;
-	AABB custom_aabb;
-
-	Vector<RID> material_cache;
-
-	List<MeshInstance *> instances;
-
-	RID shadow_mesh;
-	HashSet<Mesh *> shadow_owners;
-
-	Dependency dependency;
-};
-
-/* Mesh Instance */
-
-struct MeshInstance {
-	Mesh *mesh = nullptr;
-	RID skeleton;
-	struct Surface {
-		RID vertex_buffer;
-		RID uniform_set;
-
-		Mesh::Surface::Version *versions = nullptr; //allocated on demand
-		uint32_t version_count = 0;
-	};
-	LocalVector<Surface> surfaces;
-	LocalVector<float> blend_weights;
-
-	RID blend_weights_buffer;
-	List<MeshInstance *>::Element *I = nullptr; //used to erase itself
-	uint64_t skeleton_version = 0;
-	bool dirty = false;
-	bool weights_dirty = false;
-	SelfList<MeshInstance> weight_update_list;
-	SelfList<MeshInstance> array_update_list;
-	MeshInstance() :
-			weight_update_list(this), array_update_list(this) {}
-};
-
-/* MultiMesh */
-
-struct MultiMesh {
-	RID mesh;
-	int instances = 0;
-	RS::MultimeshTransformFormat xform_format = RS::MULTIMESH_TRANSFORM_3D;
-	bool uses_colors = false;
-	bool uses_custom_data = false;
-	int visible_instances = -1;
-	AABB aabb;
-	bool aabb_dirty = false;
-	bool buffer_set = false;
-	uint32_t stride_cache = 0;
-	uint32_t color_offset_cache = 0;
-	uint32_t custom_data_offset_cache = 0;
-
-	Vector<float> data_cache; //used if individual setting is used
-	bool *data_cache_dirty_regions = nullptr;
-	uint32_t data_cache_used_dirty_regions = 0;
-
-	RID buffer; //storage buffer
-	RID uniform_set_3d;
-	RID uniform_set_2d;
-
-	bool dirty = false;
-	MultiMesh *dirty_list = nullptr;
-
-	Dependency dependency;
-};
-
-/* Skeleton */
-
-struct SkeletonShader {
-	struct PushConstant {
-		uint32_t has_normal;
-		uint32_t has_tangent;
-		uint32_t has_skeleton;
-		uint32_t has_blend_shape;
-
-		uint32_t vertex_count;
-		uint32_t vertex_stride;
-		uint32_t skin_stride;
-		uint32_t skin_weight_offset;
-
-		uint32_t blend_shape_count;
-		uint32_t normalized_blend_shapes;
-		uint32_t pad0;
-		uint32_t pad1;
-	};
-
-	enum {
-		UNIFORM_SET_INSTANCE = 0,
-		UNIFORM_SET_SURFACE = 1,
-		UNIFORM_SET_SKELETON = 2,
-	};
-	enum {
-		SHADER_MODE_2D,
-		SHADER_MODE_3D,
-		SHADER_MODE_MAX
-	};
-
-	SkeletonShaderRD shader;
-	RID version;
-	RID version_shader[SHADER_MODE_MAX];
-	RID pipeline[SHADER_MODE_MAX];
-
-	RID default_skeleton_uniform_set;
-};
-
-struct Skeleton {
-	bool use_2d = false;
-	int size = 0;
-	Vector<float> data;
-	RID buffer;
-
-	bool dirty = false;
-	Skeleton *dirty_list = nullptr;
-	Transform2D base_transform_2d;
-
-	RID uniform_set_3d;
-	RID uniform_set_mi;
-
-	uint64_t version = 1;
-
-	Dependency dependency;
-};
-
 class MeshStorage : public RendererMeshStorage {
+public:
+	enum DefaultRDBuffer {
+		DEFAULT_RD_BUFFER_VERTEX,
+		DEFAULT_RD_BUFFER_NORMAL,
+		DEFAULT_RD_BUFFER_TANGENT,
+		DEFAULT_RD_BUFFER_COLOR,
+		DEFAULT_RD_BUFFER_TEX_UV,
+		DEFAULT_RD_BUFFER_TEX_UV2,
+		DEFAULT_RD_BUFFER_CUSTOM0,
+		DEFAULT_RD_BUFFER_CUSTOM1,
+		DEFAULT_RD_BUFFER_CUSTOM2,
+		DEFAULT_RD_BUFFER_CUSTOM3,
+		DEFAULT_RD_BUFFER_BONES,
+		DEFAULT_RD_BUFFER_WEIGHTS,
+		DEFAULT_RD_BUFFER_MAX,
+	};
+
 private:
 	static MeshStorage *singleton;
 
-	RID mesh_default_rd_buffers[DEFAULT_RD_BUFFER_MAX];
 	RID default_rd_storage_buffer;
 
 	/* Mesh */
 
+	RID mesh_default_rd_buffers[DEFAULT_RD_BUFFER_MAX];
+
+	struct MeshInstance;
+
+	struct Mesh {
+		struct Surface {
+			RS::PrimitiveType primitive = RS::PRIMITIVE_POINTS;
+			uint32_t format = 0;
+
+			RID vertex_buffer;
+			RID attribute_buffer;
+			RID skin_buffer;
+			uint32_t vertex_count = 0;
+			uint32_t vertex_buffer_size = 0;
+			uint32_t skin_buffer_size = 0;
+
+			// A different pipeline needs to be allocated
+			// depending on the inputs available in the
+			// material.
+			// There are never that many geometry/material
+			// combinations, so a simple array is the most
+			// cache-efficient structure.
+
+			struct Version {
+				uint32_t input_mask = 0;
+				RD::VertexFormatID vertex_format = 0;
+				RID vertex_array;
+			};
+
+			SpinLock version_lock; //needed to access versions
+			Version *versions = nullptr; //allocated on demand
+			uint32_t version_count = 0;
+
+			RID index_buffer;
+			RID index_array;
+			uint32_t index_count = 0;
+
+			struct LOD {
+				float edge_length = 0.0;
+				uint32_t index_count = 0;
+				RID index_buffer;
+				RID index_array;
+			};
+
+			LOD *lods = nullptr;
+			uint32_t lod_count = 0;
+
+			AABB aabb;
+
+			Vector<AABB> bone_aabbs;
+
+			RID blend_shape_buffer;
+
+			RID material;
+
+			uint32_t render_index = 0;
+			uint64_t render_pass = 0;
+
+			uint32_t multimesh_render_index = 0;
+			uint64_t multimesh_render_pass = 0;
+
+			uint32_t particles_render_index = 0;
+			uint64_t particles_render_pass = 0;
+
+			RID uniform_set;
+		};
+
+		uint32_t blend_shape_count = 0;
+		RS::BlendShapeMode blend_shape_mode = RS::BLEND_SHAPE_MODE_NORMALIZED;
+
+		Surface **surfaces = nullptr;
+		uint32_t surface_count = 0;
+
+		bool has_bone_weights = false;
+
+		AABB aabb;
+		AABB custom_aabb;
+		uint64_t skeleton_aabb_version = 0;
+
+		Vector<RID> material_cache;
+
+		List<MeshInstance *> instances;
+
+		RID shadow_mesh;
+		HashSet<Mesh *> shadow_owners;
+
+		Dependency dependency;
+	};
+
 	mutable RID_Owner<Mesh, true> mesh_owner;
 
-	void _mesh_surface_generate_version_for_input_mask(Mesh::Surface::Version &v, Mesh::Surface *s, uint32_t p_input_mask, MeshInstance::Surface *mis = nullptr);
-
 	/* Mesh Instance API */
+
+	struct MeshInstance {
+		Mesh *mesh = nullptr;
+		RID skeleton;
+		struct Surface {
+			RID vertex_buffer;
+			RID uniform_set;
+
+			Mesh::Surface::Version *versions = nullptr; //allocated on demand
+			uint32_t version_count = 0;
+		};
+		LocalVector<Surface> surfaces;
+		LocalVector<float> blend_weights;
+
+		RID blend_weights_buffer;
+		List<MeshInstance *>::Element *I = nullptr; //used to erase itself
+		uint64_t skeleton_version = 0;
+		bool dirty = false;
+		bool weights_dirty = false;
+		SelfList<MeshInstance> weight_update_list;
+		SelfList<MeshInstance> array_update_list;
+		Transform2D canvas_item_transform_2d;
+		MeshInstance() :
+				weight_update_list(this), array_update_list(this) {}
+	};
+
+	void _mesh_surface_generate_version_for_input_mask(Mesh::Surface::Version &v, Mesh::Surface *s, uint32_t p_input_mask, MeshInstance::Surface *mis = nullptr);
 
 	void _mesh_instance_clear(MeshInstance *mi);
 	void _mesh_instance_add_surface(MeshInstance *mi, Mesh *mesh, uint32_t p_surface);
@@ -284,18 +195,114 @@ private:
 
 	/* MultiMesh */
 
+	struct MultiMesh {
+		RID mesh;
+		int instances = 0;
+		RS::MultimeshTransformFormat xform_format = RS::MULTIMESH_TRANSFORM_3D;
+		bool uses_colors = false;
+		bool uses_custom_data = false;
+		int visible_instances = -1;
+		AABB aabb;
+		bool aabb_dirty = false;
+		bool buffer_set = false;
+		bool motion_vectors_enabled = false;
+		uint32_t motion_vectors_current_offset = 0;
+		uint32_t motion_vectors_previous_offset = 0;
+		uint64_t motion_vectors_last_change = -1;
+		uint32_t stride_cache = 0;
+		uint32_t color_offset_cache = 0;
+		uint32_t custom_data_offset_cache = 0;
+
+		Vector<float> data_cache; //used if individual setting is used
+		bool *data_cache_dirty_regions = nullptr;
+		uint32_t data_cache_dirty_region_count = 0;
+		bool *previous_data_cache_dirty_regions = nullptr;
+		uint32_t previous_data_cache_dirty_region_count = 0;
+
+		RID buffer; //storage buffer
+		RID uniform_set_3d;
+		RID uniform_set_2d;
+
+		bool dirty = false;
+		MultiMesh *dirty_list = nullptr;
+
+		Dependency dependency;
+	};
+
 	mutable RID_Owner<MultiMesh, true> multimesh_owner;
 
 	MultiMesh *multimesh_dirty_list = nullptr;
 
 	_FORCE_INLINE_ void _multimesh_make_local(MultiMesh *multimesh) const;
+	_FORCE_INLINE_ void _multimesh_update_motion_vectors_data_cache(MultiMesh *multimesh);
 	_FORCE_INLINE_ void _multimesh_mark_dirty(MultiMesh *multimesh, int p_index, bool p_aabb);
 	_FORCE_INLINE_ void _multimesh_mark_all_dirty(MultiMesh *multimesh, bool p_data, bool p_aabb);
 	_FORCE_INLINE_ void _multimesh_re_create_aabb(MultiMesh *multimesh, const float *p_data, int p_instances);
 
 	/* Skeleton */
 
-	SkeletonShader skeleton_shader;
+	struct SkeletonShader {
+		struct PushConstant {
+			uint32_t has_normal;
+			uint32_t has_tangent;
+			uint32_t has_skeleton;
+			uint32_t has_blend_shape;
+
+			uint32_t vertex_count;
+			uint32_t vertex_stride;
+			uint32_t skin_stride;
+			uint32_t skin_weight_offset;
+
+			uint32_t blend_shape_count;
+			uint32_t normalized_blend_shapes;
+			uint32_t pad0;
+			uint32_t pad1;
+			float skeleton_transform_x[2];
+			float skeleton_transform_y[2];
+
+			float skeleton_transform_offset[2];
+			float inverse_transform_x[2];
+
+			float inverse_transform_y[2];
+			float inverse_transform_offset[2];
+		};
+
+		enum {
+			UNIFORM_SET_INSTANCE = 0,
+			UNIFORM_SET_SURFACE = 1,
+			UNIFORM_SET_SKELETON = 2,
+		};
+		enum {
+			SHADER_MODE_2D,
+			SHADER_MODE_3D,
+			SHADER_MODE_MAX
+		};
+
+		SkeletonShaderRD shader;
+		RID version;
+		RID version_shader[SHADER_MODE_MAX];
+		RID pipeline[SHADER_MODE_MAX];
+
+		RID default_skeleton_uniform_set;
+	} skeleton_shader;
+
+	struct Skeleton {
+		bool use_2d = false;
+		int size = 0;
+		Vector<float> data;
+		RID buffer;
+
+		bool dirty = false;
+		Skeleton *dirty_list = nullptr;
+		Transform2D base_transform_2d;
+
+		RID uniform_set_3d;
+		RID uniform_set_mi;
+
+		uint64_t version = 1;
+
+		Dependency dependency;
+	};
 
 	mutable RID_Owner<Skeleton, true> skeleton_owner;
 
@@ -309,11 +316,12 @@ public:
 	MeshStorage();
 	virtual ~MeshStorage();
 
-	RID get_default_rd_storage_buffer() { return default_rd_storage_buffer; }
+	bool free(RID p_rid);
+
+	RID get_default_rd_storage_buffer() const { return default_rd_storage_buffer; }
 
 	/* MESH API */
 
-	Mesh *get_mesh(RID p_rid) { return mesh_owner.get_or_null(p_rid); };
 	bool owns_mesh(RID p_rid) { return mesh_owner.owns(p_rid); };
 
 	virtual RID mesh_allocate() override;
@@ -398,13 +406,11 @@ public:
 		return s->index_count ? s->index_count : s->vertex_count;
 	}
 
-	_FORCE_INLINE_ uint32_t mesh_surface_get_lod(void *p_surface, float p_model_scale, float p_distance_threshold, float p_mesh_lod_threshold, uint32_t *r_index_count = nullptr) const {
+	_FORCE_INLINE_ uint32_t mesh_surface_get_lod(void *p_surface, float p_model_scale, float p_distance_threshold, float p_mesh_lod_threshold, uint32_t &r_index_count) const {
 		Mesh::Surface *s = reinterpret_cast<Mesh::Surface *>(p_surface);
 
 		int32_t current_lod = -1;
-		if (r_index_count) {
-			*r_index_count = s->index_count;
-		}
+		r_index_count = s->index_count;
 		for (uint32_t i = 0; i < s->lod_count; i++) {
 			float screen_size = s->lods[i].edge_length * p_model_scale / p_distance_threshold;
 			if (screen_size > p_mesh_lod_threshold) {
@@ -415,9 +421,7 @@ public:
 		if (current_lod == -1) {
 			return 0;
 		} else {
-			if (r_index_count) {
-				*r_index_count = s->lods[current_lod].index_count;
-			}
+			r_index_count = s->lods[current_lod].index_count;
 			return current_lod + 1;
 		}
 	}
@@ -542,21 +546,22 @@ public:
 		return s->particles_render_index;
 	}
 
+	Dependency *mesh_get_dependency(RID p_mesh) const;
+
 	/* MESH INSTANCE API */
 
-	MeshInstance *get_mesh_instance(RID p_rid) { return mesh_instance_owner.get_or_null(p_rid); };
-	bool owns_mesh_instance(RID p_rid) { return mesh_instance_owner.owns(p_rid); };
+	bool owns_mesh_instance(RID p_rid) const { return mesh_instance_owner.owns(p_rid); };
 
 	virtual RID mesh_instance_create(RID p_base) override;
 	virtual void mesh_instance_free(RID p_rid) override;
 	virtual void mesh_instance_set_skeleton(RID p_mesh_instance, RID p_skeleton) override;
 	virtual void mesh_instance_set_blend_shape_weight(RID p_mesh_instance, int p_shape, float p_weight) override;
 	virtual void mesh_instance_check_for_update(RID p_mesh_instance) override;
+	virtual void mesh_instance_set_canvas_item_transform(RID p_mesh_instance, const Transform2D &p_transform) override;
 	virtual void update_mesh_instances() override;
 
 	/* MULTIMESH API */
 
-	MultiMesh *get_multimesh(RID p_rid) { return multimesh_owner.get_or_null(p_rid); };
 	bool owns_multimesh(RID p_rid) { return multimesh_owner.owns(p_rid); };
 
 	virtual RID multimesh_allocate() override;
@@ -588,6 +593,8 @@ public:
 	virtual AABB multimesh_get_aabb(RID p_multimesh) const override;
 
 	void _update_dirty_multimeshes();
+	bool _multimesh_enable_motion_vectors(RID p_multimesh);
+	void _multimesh_get_motion_vectors_offsets(RID p_multimesh, uint32_t &r_current_offset, uint32_t &r_prev_offset);
 
 	_FORCE_INLINE_ RS::MultimeshTransformFormat multimesh_get_transform_format(RID p_multimesh) const {
 		MultiMesh *multimesh = multimesh_owner.get_or_null(p_multimesh);
@@ -654,10 +661,11 @@ public:
 		return multimesh->uniform_set_2d;
 	}
 
+	Dependency *multimesh_get_dependency(RID p_multimesh) const;
+
 	/* SKELETON API */
 
-	Skeleton *get_skeleton(RID p_rid) { return skeleton_owner.get_or_null(p_rid); };
-	bool owns_skeleton(RID p_rid) { return skeleton_owner.owns(p_rid); };
+	bool owns_skeleton(RID p_rid) const { return skeleton_owner.owns(p_rid); };
 
 	virtual RID skeleton_allocate() override;
 	virtual void skeleton_initialize(RID p_skeleton) override;
@@ -665,7 +673,6 @@ public:
 
 	virtual void skeleton_allocate_data(RID p_skeleton, int p_bones, bool p_2d_skeleton = false) override;
 	virtual void skeleton_set_base_transform_2d(RID p_skeleton, const Transform2D &p_base_transform) override;
-	void skeleton_set_world_transform(RID p_skeleton, bool p_enable, const Transform3D &p_world_transform);
 	virtual int skeleton_get_bone_count(RID p_skeleton) const override;
 	virtual void skeleton_bone_set_transform(RID p_skeleton, int p_bone, const Transform3D &p_transform) override;
 	virtual Transform3D skeleton_bone_get_transform(RID p_skeleton, int p_bone) const override;
@@ -703,4 +710,4 @@ public:
 
 } // namespace RendererRD
 
-#endif // !MESH_STORAGE_RD_H
+#endif // MESH_STORAGE_RD_H

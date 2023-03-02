@@ -97,11 +97,12 @@ void light_compute(vec3 N, vec3 L, vec3 V, float A, vec3 light_color, float atte
 		float diffuse_brdf_NL; // BRDF times N.L for calculating diffuse radiance
 
 #if defined(DIFFUSE_LAMBERT_WRAP)
-		// energy conserving lambert wrap shader
-		diffuse_brdf_NL = max(0.0, (NdotL + roughness) / ((1.0 + roughness) * (1.0 + roughness)));
+		// Energy conserving lambert wrap shader.
+		// https://web.archive.org/web/20210228210901/http://blog.stevemcauley.com/2011/12/03/energy-conserving-wrapped-diffuse/
+		diffuse_brdf_NL = max(0.0, (NdotL + roughness) / ((1.0 + roughness) * (1.0 + roughness))) * (1.0 / M_PI);
 #elif defined(DIFFUSE_TOON)
 
-		diffuse_brdf_NL = smoothstep(-roughness, max(roughness, 0.01), NdotL);
+		diffuse_brdf_NL = smoothstep(-roughness, max(roughness, 0.01), NdotL) * (1.0 / M_PI);
 
 #elif defined(DIFFUSE_BURLEY)
 
@@ -133,7 +134,8 @@ void light_compute(vec3 N, vec3 L, vec3 V, float A, vec3 light_color, float atte
 #endif
 
 #if defined(LIGHT_RIM_USED)
-		float rim_light = pow(max(0.0, 1.0 - cNdotV), max(0.0, (1.0 - roughness) * 16.0));
+		// Epsilon min to prevent pow(0, 0) singularity which results in undefined behavior.
+		float rim_light = pow(max(1e-4, 1.0 - cNdotV), max(0.0, (1.0 - roughness) * 16.0));
 		diffuse_light += rim_light * rim * mix(vec3(1.0), albedo, rim_tint) * light_color;
 #endif
 
@@ -199,7 +201,10 @@ void light_compute(vec3 N, vec3 L, vec3 V, float A, vec3 light_color, float atte
 #endif // LIGHT_ANISOTROPY_USED
 	   // F
 		float cLdotH5 = SchlickFresnel(cLdotH);
-		vec3 F = mix(vec3(cLdotH5), vec3(1.0), f0);
+		// Calculate Fresnel using specular occlusion term from Filament:
+		// https://google.github.io/filament/Filament.html#lighting/occlusion/specularocclusion
+		float f90 = clamp(dot(f0, vec3(50.0 * 0.33)), metallic, 1.0);
+		vec3 F = f0 + (f90 - f0) * cLdotH5;
 
 		vec3 specular_brdf_NL = cNdotL * D * F * G;
 
@@ -392,7 +397,7 @@ float get_omni_attenuation(float distance, float inv_range, float decay) {
 
 float light_process_omni_shadow(uint idx, vec3 vertex, vec3 normal) {
 #ifndef SHADOWS_DISABLED
-	if (omni_lights.data[idx].shadow_enabled) {
+	if (omni_lights.data[idx].shadow_opacity > 0.001) {
 		// there is a shadowmap
 		vec2 texel_size = scene_data_block.data.shadow_atlas_pixel_size;
 		vec4 base_uv_rect = omni_lights.data[idx].atlas_rect;
@@ -495,6 +500,7 @@ float light_process_omni_shadow(uint idx, vec3 vertex, vec3 normal) {
 				}
 
 				shadow /= float(sc_penumbra_shadow_samples);
+				shadow = mix(1.0, shadow, omni_lights.data[idx].shadow_opacity);
 
 			} else {
 				//no blockers found, so no shadow
@@ -513,7 +519,7 @@ float light_process_omni_shadow(uint idx, vec3 vertex, vec3 normal) {
 			vec2 pos = shadow_sample.xy / shadow_sample.z;
 			float depth = shadow_len - omni_lights.data[idx].shadow_bias;
 			depth *= omni_lights.data[idx].inv_radius;
-			shadow = sample_omni_pcf_shadow(shadow_atlas, omni_lights.data[idx].soft_shadow_scale / shadow_sample.z, pos, uv_rect, flip_offset, depth);
+			shadow = mix(1.0, sample_omni_pcf_shadow(shadow_atlas, omni_lights.data[idx].soft_shadow_scale / shadow_sample.z, pos, uv_rect, flip_offset, depth), omni_lights.data[idx].shadow_opacity);
 		}
 
 		return shadow;
@@ -671,7 +677,7 @@ void light_process_omni(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 v
 
 float light_process_spot_shadow(uint idx, vec3 vertex, vec3 normal) {
 #ifndef SHADOWS_DISABLED
-	if (spot_lights.data[idx].shadow_enabled) {
+	if (spot_lights.data[idx].shadow_opacity > 0.001) {
 		vec3 light_rel_vec = spot_lights.data[idx].position - vertex;
 		float light_length = length(light_rel_vec);
 		vec3 spot_dir = spot_lights.data[idx].direction;
@@ -732,6 +738,7 @@ float light_process_spot_shadow(uint idx, vec3 vertex, vec3 normal) {
 				}
 
 				shadow /= float(sc_penumbra_shadow_samples);
+				shadow = mix(1.0, shadow, spot_lights.data[idx].shadow_opacity);
 
 			} else {
 				//no blockers found, so no shadow
@@ -740,7 +747,7 @@ float light_process_spot_shadow(uint idx, vec3 vertex, vec3 normal) {
 		} else {
 			//hard shadow
 			vec3 shadow_uv = vec3(splane.xy * spot_lights.data[idx].atlas_rect.zw + spot_lights.data[idx].atlas_rect.xy, splane.z);
-			shadow = sample_pcf_shadow(shadow_atlas, spot_lights.data[idx].soft_shadow_scale * scene_data_block.data.shadow_atlas_pixel_size, shadow_uv);
+			shadow = mix(1.0, sample_pcf_shadow(shadow_atlas, spot_lights.data[idx].soft_shadow_scale * scene_data_block.data.shadow_atlas_pixel_size, shadow_uv), spot_lights.data[idx].shadow_opacity);
 		}
 
 		return shadow;
@@ -787,8 +794,13 @@ void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 v
 	float light_length = length(light_rel_vec);
 	float spot_attenuation = get_omni_attenuation(light_length, spot_lights.data[idx].inv_radius, spot_lights.data[idx].attenuation);
 	vec3 spot_dir = spot_lights.data[idx].direction;
-	float scos = max(dot(-normalize(light_rel_vec), spot_dir), spot_lights.data[idx].cone_angle);
-	float spot_rim = max(0.0001, (1.0 - scos) / (1.0 - spot_lights.data[idx].cone_angle));
+
+	// This conversion to a highp float is crucial to prevent light leaking
+	// due to precision errors in the following calculations (cone angle is mediump).
+	highp float cone_angle = spot_lights.data[idx].cone_angle;
+	float scos = max(dot(-normalize(light_rel_vec), spot_dir), cone_angle);
+	float spot_rim = max(0.0001, (1.0 - scos) / (1.0 - cone_angle));
+
 	spot_attenuation *= 1.0 - pow(spot_rim, spot_lights.data[idx].cone_attenuation);
 	float light_attenuation = spot_attenuation;
 	vec3 color = spot_lights.data[idx].color;
@@ -869,15 +881,13 @@ void light_process_spot(uint idx, vec3 vertex, vec3 eye_vec, vec3 normal, vec3 v
 			diffuse_light, specular_light);
 }
 
-void reflection_process(uint ref_index, vec3 view, vec3 vertex, vec3 normal, float roughness, vec3 ambient_light, vec3 specular_light, inout vec4 ambient_accum, inout vec4 reflection_accum) {
+void reflection_process(uint ref_index, vec3 vertex, vec3 ref_vec, vec3 normal, float roughness, vec3 ambient_light, vec3 specular_light, inout vec4 ambient_accum, inout vec4 reflection_accum) {
 	vec3 box_extents = reflections.data[ref_index].box_extents;
 	vec3 local_pos = (reflections.data[ref_index].local_matrix * vec4(vertex, 1.0)).xyz;
 
 	if (any(greaterThan(abs(local_pos), box_extents))) { //out of the reflection box
 		return;
 	}
-
-	vec3 ref_vec = normalize(reflect(-view, normal));
 
 	vec3 inner_pos = abs(local_pos / box_extents);
 	float blend = max(inner_pos.x, max(inner_pos.y, inner_pos.z));
@@ -906,7 +916,7 @@ void reflection_process(uint ref_index, vec3 view, vec3 vertex, vec3 normal, flo
 		vec4 reflection;
 
 		reflection.rgb = textureLod(samplerCubeArray(reflection_atlas, material_samplers[SAMPLER_LINEAR_WITH_MIPMAPS_CLAMP]), vec4(local_ref_vec, reflections.data[ref_index].index), roughness * MAX_ROUGHNESS_LOD).rgb * sc_luminance_multiplier;
-
+		reflection.rgb *= reflections.data[ref_index].exposure_normalization;
 		if (reflections.data[ref_index].exterior) {
 			reflection.rgb = mix(specular_light, reflection.rgb, blend);
 		}
@@ -929,6 +939,7 @@ void reflection_process(uint ref_index, vec3 view, vec3 vertex, vec3 normal, flo
 			vec4 ambient_out;
 
 			ambient_out.rgb = textureLod(samplerCubeArray(reflection_atlas, material_samplers[SAMPLER_LINEAR_WITH_MIPMAPS_CLAMP]), vec4(local_amb_vec, reflections.data[ref_index].index), MAX_ROUGHNESS_LOD).rgb;
+			ambient_out.rgb *= reflections.data[ref_index].exposure_normalization;
 			ambient_out.a = blend;
 			if (reflections.data[ref_index].exterior) {
 				ambient_out.rgb = mix(ambient_light, ambient_out.rgb, blend);

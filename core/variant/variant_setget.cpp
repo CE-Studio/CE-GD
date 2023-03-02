@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  variant_setget.cpp                                                   */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  variant_setget.cpp                                                    */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "variant_setget.h"
 
@@ -77,6 +77,16 @@ void register_named_setters_getters() {
 	REGISTER_MEMBER(Vector3i, y);
 	REGISTER_MEMBER(Vector3i, z);
 
+	REGISTER_MEMBER(Vector4, x);
+	REGISTER_MEMBER(Vector4, y);
+	REGISTER_MEMBER(Vector4, z);
+	REGISTER_MEMBER(Vector4, w);
+
+	REGISTER_MEMBER(Vector4i, x);
+	REGISTER_MEMBER(Vector4i, y);
+	REGISTER_MEMBER(Vector4i, z);
+	REGISTER_MEMBER(Vector4i, w);
+
 	REGISTER_MEMBER(Rect2, position);
 	REGISTER_MEMBER(Rect2, size);
 	REGISTER_MEMBER(Rect2, end);
@@ -111,6 +121,11 @@ void register_named_setters_getters() {
 	REGISTER_MEMBER(Transform3D, basis);
 	REGISTER_MEMBER(Transform3D, origin);
 
+	REGISTER_MEMBER(Projection, x);
+	REGISTER_MEMBER(Projection, y);
+	REGISTER_MEMBER(Projection, z);
+	REGISTER_MEMBER(Projection, w);
+
 	REGISTER_MEMBER(Color, r);
 	REGISTER_MEMBER(Color, g);
 	REGISTER_MEMBER(Color, b);
@@ -136,8 +151,8 @@ void unregister_named_setters_getters() {
 bool Variant::has_member(Variant::Type p_type, const StringName &p_member) {
 	ERR_FAIL_INDEX_V(p_type, Variant::VARIANT_MAX, false);
 
-	for (uint32_t i = 0; i < variant_setters_getters_names[p_type].size(); i++) {
-		if (variant_setters_getters_names[p_type][i] == p_member) {
+	for (const StringName &member : variant_setters_getters_names[p_type]) {
+		if (member == p_member) {
 			return true;
 		}
 	}
@@ -157,8 +172,8 @@ Variant::Type Variant::get_member_type(Variant::Type p_type, const StringName &p
 }
 
 void Variant::get_member_list(Variant::Type p_type, List<StringName> *r_members) {
-	for (uint32_t i = 0; i < variant_setters_getters_names[p_type].size(); i++) {
-		r_members->push_back(variant_setters_getters_names[p_type][i]);
+	for (const StringName &member : variant_setters_getters_names[p_type]) {
+		r_members->push_back(member);
 	}
 }
 
@@ -374,6 +389,7 @@ Variant Variant::get_named(const StringName &p_member, bool &r_valid) const {
 			v.write[index] = PtrToArg<m_elem_type>::convert(member);                                                                 \
 		}                                                                                                                            \
 		static Variant::Type get_index_type() { return GetTypeInfo<m_elem_type>::VARIANT_TYPE; }                                     \
+		static uint32_t get_index_usage() { return GetTypeInfo<m_elem_type>::get_class_info().usage; }                               \
 		static uint64_t get_indexed_size(const Variant *base) { return VariantGetInternalPtr<m_base_type>::get_ptr(base)->size(); }  \
 	};
 
@@ -445,6 +461,7 @@ Variant Variant::get_named(const StringName &p_member, bool &r_valid) const {
 			v.write[index] = PtrToArg<m_elem_type>::convert(member);                                                                 \
 		}                                                                                                                            \
 		static Variant::Type get_index_type() { return GetTypeInfo<m_elem_type>::VARIANT_TYPE; }                                     \
+		static uint32_t get_index_usage() { return GetTypeInfo<m_elem_type>::get_class_info().usage; }                               \
 		static uint64_t get_indexed_size(const Variant *base) { return VariantGetInternalPtr<m_base_type>::get_ptr(base)->size(); }  \
 	};
 
@@ -500,6 +517,7 @@ Variant Variant::get_named(const StringName &p_member, bool &r_valid) const {
 			v[index] = PtrToArg<m_elem_type>::convert(member);                                                                 \
 		}                                                                                                                      \
 		static Variant::Type get_index_type() { return GetTypeInfo<m_elem_type>::VARIANT_TYPE; }                               \
+		static uint32_t get_index_usage() { return GetTypeInfo<m_elem_type>::get_class_info().usage; }                         \
 		static uint64_t get_indexed_size(const Variant *base) { return m_max; }                                                \
 	};
 
@@ -549,6 +567,7 @@ Variant Variant::get_named(const StringName &p_member, bool &r_valid) const {
 			v m_accessor[index] = PtrToArg<m_elem_type>::convert(member);                                                                 \
 		}                                                                                                                                 \
 		static Variant::Type get_index_type() { return GetTypeInfo<m_elem_type>::VARIANT_TYPE; }                                          \
+		static uint32_t get_index_usage() { return GetTypeInfo<m_elem_type>::get_class_info().usage; }                                    \
 		static uint64_t get_indexed_size(const Variant *base) { return m_max; }                                                           \
 	};
 
@@ -598,6 +617,7 @@ Variant Variant::get_named(const StringName &p_member, bool &r_valid) const {
 			v.m_set(index, PtrToArg<m_elem_type>::convert(member));                                                                \
 		}                                                                                                                          \
 		static Variant::Type get_index_type() { return GetTypeInfo<m_elem_type>::VARIANT_TYPE; }                                   \
+		static uint32_t get_index_usage() { return GetTypeInfo<m_elem_type>::get_class_info().usage; }                             \
 		static uint64_t get_indexed_size(const Variant *base) { return m_max; }                                                    \
 	};
 
@@ -668,6 +688,7 @@ struct VariantIndexedSetGet_Array {
 		v.set(index, PtrToArg<Variant>::convert(member));
 	}
 	static Variant::Type get_index_type() { return Variant::NIL; }
+	static uint32_t get_index_usage() { return PROPERTY_USAGE_NIL_IS_VARIANT; }
 	static uint64_t get_indexed_size(const Variant *base) { return 0; }
 };
 
@@ -753,6 +774,7 @@ struct VariantIndexedSetGet_String {
 		}
 	}
 	static Variant::Type get_index_type() { return Variant::STRING; }
+	static uint32_t get_index_usage() { return PROPERTY_USAGE_DEFAULT; }
 	static uint64_t get_indexed_size(const Variant *base) { return VariantInternal::get_string(base)->length(); }
 };
 
@@ -797,6 +819,7 @@ struct VariantIndexedSetGet_String {
 			v[index] = PtrToArg<Variant>::convert(member);                                                                          \
 		}                                                                                                                           \
 		static Variant::Type get_index_type() { return Variant::NIL; }                                                              \
+		static uint32_t get_index_usage() { return PROPERTY_USAGE_DEFAULT; }                                                        \
 		static uint64_t get_indexed_size(const Variant *base) { return VariantGetInternalPtr<m_base_type>::get_ptr(base)->size(); } \
 	};
 
@@ -804,11 +827,14 @@ INDEXED_SETGET_STRUCT_BULTIN_NUMERIC(Vector2, double, real_t, 2)
 INDEXED_SETGET_STRUCT_BULTIN_NUMERIC(Vector2i, int64_t, int32_t, 2)
 INDEXED_SETGET_STRUCT_BULTIN_NUMERIC(Vector3, double, real_t, 3)
 INDEXED_SETGET_STRUCT_BULTIN_NUMERIC(Vector3i, int64_t, int32_t, 3)
+INDEXED_SETGET_STRUCT_BULTIN_NUMERIC(Vector4, double, real_t, 4)
+INDEXED_SETGET_STRUCT_BULTIN_NUMERIC(Vector4i, int64_t, int32_t, 4)
 INDEXED_SETGET_STRUCT_BULTIN_NUMERIC(Quaternion, double, real_t, 4)
 INDEXED_SETGET_STRUCT_BULTIN_NUMERIC(Color, double, float, 4)
 
 INDEXED_SETGET_STRUCT_BULTIN_ACCESSOR(Transform2D, Vector2, .columns, 3)
 INDEXED_SETGET_STRUCT_BULTIN_FUNC(Basis, Vector3, set_column, get_column, 3)
+INDEXED_SETGET_STRUCT_BULTIN_ACCESSOR(Projection, Vector4, .columns, 4)
 
 INDEXED_SETGET_STRUCT_TYPED_NUMERIC(PackedByteArray, int64_t, uint8_t)
 INDEXED_SETGET_STRUCT_TYPED_NUMERIC(PackedInt32Array, int64_t, int32_t)
@@ -834,7 +860,8 @@ struct VariantIndexedSetterGetterInfo {
 
 	uint64_t (*get_indexed_size)(const Variant *base) = nullptr;
 
-	Variant::Type index_type;
+	Variant::Type index_type = Variant::NIL;
+	uint32_t index_usage = PROPERTY_USAGE_DEFAULT;
 
 	bool valid = false;
 };
@@ -854,6 +881,7 @@ static void register_indexed_member(Variant::Type p_type) {
 	sgi.ptr_getter = T::ptr_get;
 
 	sgi.index_type = T::get_index_type();
+	sgi.index_usage = T::get_index_usage();
 	sgi.get_indexed_size = T::get_indexed_size;
 
 	sgi.valid = true;
@@ -867,10 +895,13 @@ void register_indexed_setters_getters() {
 	REGISTER_INDEXED_MEMBER(Vector2i);
 	REGISTER_INDEXED_MEMBER(Vector3);
 	REGISTER_INDEXED_MEMBER(Vector3i);
+	REGISTER_INDEXED_MEMBER(Vector4);
+	REGISTER_INDEXED_MEMBER(Vector4i);
 	REGISTER_INDEXED_MEMBER(Quaternion);
 	REGISTER_INDEXED_MEMBER(Color);
 	REGISTER_INDEXED_MEMBER(Transform2D);
 	REGISTER_INDEXED_MEMBER(Basis);
+	REGISTER_INDEXED_MEMBER(Projection);
 
 	REGISTER_INDEXED_MEMBER(PackedByteArray);
 	REGISTER_INDEXED_MEMBER(PackedInt32Array);
@@ -897,6 +928,11 @@ bool Variant::has_indexing(Variant::Type p_type) {
 Variant::Type Variant::get_indexed_element_type(Variant::Type p_type) {
 	ERR_FAIL_INDEX_V(p_type, Variant::VARIANT_MAX, Variant::VARIANT_MAX);
 	return variant_indexed_setters_getters[p_type].index_type;
+}
+
+uint32_t Variant::get_indexed_element_usage(Variant::Type p_type) {
+	ERR_FAIL_INDEX_V(p_type, Variant::VARIANT_MAX, PROPERTY_USAGE_DEFAULT);
+	return variant_indexed_setters_getters[p_type].index_usage;
 }
 
 Variant::ValidatedIndexedSetter Variant::get_member_validated_indexed_setter(Variant::Type p_type) {
@@ -1232,7 +1268,7 @@ bool Variant::iter_init(Variant &r_iter, bool &valid) const {
 			return _data._int > 0;
 		} break;
 		case FLOAT: {
-			r_iter = 0;
+			r_iter = 0.0;
 			return _data._float > 0.0;
 		} break;
 		case VECTOR2: {
@@ -1436,7 +1472,7 @@ bool Variant::iter_next(Variant &r_iter, bool &valid) const {
 			return true;
 		} break;
 		case FLOAT: {
-			int64_t idx = r_iter;
+			double idx = r_iter;
 			idx++;
 			if (idx >= _data._float) {
 				return false;
@@ -1887,572 +1923,6 @@ Variant Variant::recursive_duplicate(bool p_deep, int recursion_count) const {
 			return operator Vector<Color>().duplicate();
 		default:
 			return *this;
-	}
-}
-
-void Variant::sub(const Variant &a, const Variant &b, Variant &r_dst) {
-	if (a.type != b.type) {
-		return;
-	}
-
-	switch (a.type) {
-		case NIL: {
-			r_dst = Variant();
-		}
-			return;
-		case INT: {
-			int64_t va = a._data._int;
-			int64_t vb = b._data._int;
-			r_dst = int(va - vb);
-		}
-			return;
-		case FLOAT: {
-			double ra = a._data._float;
-			double rb = b._data._float;
-			r_dst = ra - rb;
-		}
-			return;
-		case VECTOR2: {
-			r_dst = *reinterpret_cast<const Vector2 *>(a._data._mem) - *reinterpret_cast<const Vector2 *>(b._data._mem);
-		}
-			return;
-		case VECTOR2I: {
-			int32_t vax = reinterpret_cast<const Vector2i *>(a._data._mem)->x;
-			int32_t vbx = reinterpret_cast<const Vector2i *>(b._data._mem)->x;
-			int32_t vay = reinterpret_cast<const Vector2i *>(a._data._mem)->y;
-			int32_t vby = reinterpret_cast<const Vector2i *>(b._data._mem)->y;
-			r_dst = Vector2i(int32_t(vax - vbx), int32_t(vay - vby));
-		}
-			return;
-		case RECT2: {
-			const Rect2 *ra = reinterpret_cast<const Rect2 *>(a._data._mem);
-			const Rect2 *rb = reinterpret_cast<const Rect2 *>(b._data._mem);
-			r_dst = Rect2(ra->position - rb->position, ra->size - rb->size);
-		}
-			return;
-		case RECT2I: {
-			const Rect2i *ra = reinterpret_cast<const Rect2i *>(a._data._mem);
-			const Rect2i *rb = reinterpret_cast<const Rect2i *>(b._data._mem);
-
-			int32_t vax = ra->position.x;
-			int32_t vay = ra->position.y;
-			int32_t vbx = ra->size.x;
-			int32_t vby = ra->size.y;
-			int32_t vcx = rb->position.x;
-			int32_t vcy = rb->position.y;
-			int32_t vdx = rb->size.x;
-			int32_t vdy = rb->size.y;
-
-			r_dst = Rect2i(int32_t(vax - vbx), int32_t(vay - vby), int32_t(vcx - vdx), int32_t(vcy - vdy));
-		}
-			return;
-		case VECTOR3: {
-			r_dst = *reinterpret_cast<const Vector3 *>(a._data._mem) - *reinterpret_cast<const Vector3 *>(b._data._mem);
-		}
-			return;
-		case VECTOR3I: {
-			int32_t vax = reinterpret_cast<const Vector3i *>(a._data._mem)->x;
-			int32_t vbx = reinterpret_cast<const Vector3i *>(b._data._mem)->x;
-			int32_t vay = reinterpret_cast<const Vector3i *>(a._data._mem)->y;
-			int32_t vby = reinterpret_cast<const Vector3i *>(b._data._mem)->y;
-			int32_t vaz = reinterpret_cast<const Vector3i *>(a._data._mem)->z;
-			int32_t vbz = reinterpret_cast<const Vector3i *>(b._data._mem)->z;
-			r_dst = Vector3i(int32_t(vax - vbx), int32_t(vay - vby), int32_t(vaz - vbz));
-		}
-			return;
-		case AABB: {
-			const ::AABB *ra = reinterpret_cast<const ::AABB *>(a._data._mem);
-			const ::AABB *rb = reinterpret_cast<const ::AABB *>(b._data._mem);
-			r_dst = ::AABB(ra->position - rb->position, ra->size - rb->size);
-		}
-			return;
-		case QUATERNION: {
-			Quaternion empty_rot;
-			const Quaternion *qa = reinterpret_cast<const Quaternion *>(a._data._mem);
-			const Quaternion *qb = reinterpret_cast<const Quaternion *>(b._data._mem);
-			r_dst = (*qb).inverse() * *qa;
-		}
-			return;
-		case COLOR: {
-			const Color *ca = reinterpret_cast<const Color *>(a._data._mem);
-			const Color *cb = reinterpret_cast<const Color *>(b._data._mem);
-			float new_r = ca->r - cb->r;
-			float new_g = ca->g - cb->g;
-			float new_b = ca->b - cb->b;
-			float new_a = ca->a - cb->a;
-			new_r = new_r > 1.0 ? 1.0 : new_r;
-			new_g = new_g > 1.0 ? 1.0 : new_g;
-			new_b = new_b > 1.0 ? 1.0 : new_b;
-			new_a = new_a > 1.0 ? 1.0 : new_a;
-			r_dst = Color(new_r, new_g, new_b, new_a);
-		}
-			return;
-		default: {
-			r_dst = a;
-		}
-			return;
-	}
-}
-
-void Variant::blend(const Variant &a, const Variant &b, float c, Variant &r_dst) {
-	if (a.type != b.type) {
-		if (a.is_num() && b.is_num()) {
-			real_t va = a;
-			real_t vb = b;
-			r_dst = va + vb * c;
-		} else {
-			r_dst = a;
-		}
-		return;
-	}
-
-	switch (a.type) {
-		case NIL: {
-			r_dst = Variant();
-		}
-			return;
-		case INT: {
-			int64_t va = a._data._int;
-			int64_t vb = b._data._int;
-			r_dst = int(va + vb * c + 0.5);
-		}
-			return;
-		case FLOAT: {
-			double ra = a._data._float;
-			double rb = b._data._float;
-			r_dst = ra + rb * c;
-		}
-			return;
-		case VECTOR2: {
-			r_dst = *reinterpret_cast<const Vector2 *>(a._data._mem) + *reinterpret_cast<const Vector2 *>(b._data._mem) * c;
-		}
-			return;
-		case VECTOR2I: {
-			int32_t vax = reinterpret_cast<const Vector2i *>(a._data._mem)->x;
-			int32_t vbx = reinterpret_cast<const Vector2i *>(b._data._mem)->x;
-			int32_t vay = reinterpret_cast<const Vector2i *>(a._data._mem)->y;
-			int32_t vby = reinterpret_cast<const Vector2i *>(b._data._mem)->y;
-			r_dst = Vector2i(int32_t(vax + vbx * c + 0.5), int32_t(vay + vby * c + 0.5));
-		}
-			return;
-		case RECT2: {
-			const Rect2 *ra = reinterpret_cast<const Rect2 *>(a._data._mem);
-			const Rect2 *rb = reinterpret_cast<const Rect2 *>(b._data._mem);
-			r_dst = Rect2(ra->position + rb->position * c, ra->size + rb->size * c);
-		}
-			return;
-		case RECT2I: {
-			const Rect2i *ra = reinterpret_cast<const Rect2i *>(a._data._mem);
-			const Rect2i *rb = reinterpret_cast<const Rect2i *>(b._data._mem);
-
-			int32_t vax = ra->position.x;
-			int32_t vay = ra->position.y;
-			int32_t vbx = ra->size.x;
-			int32_t vby = ra->size.y;
-			int32_t vcx = rb->position.x;
-			int32_t vcy = rb->position.y;
-			int32_t vdx = rb->size.x;
-			int32_t vdy = rb->size.y;
-
-			r_dst = Rect2i(int32_t(vax + vbx * c + 0.5), int32_t(vay + vby * c + 0.5), int32_t(vcx + vdx * c + 0.5), int32_t(vcy + vdy * c + 0.5));
-		}
-			return;
-		case VECTOR3: {
-			r_dst = *reinterpret_cast<const Vector3 *>(a._data._mem) + *reinterpret_cast<const Vector3 *>(b._data._mem) * c;
-		}
-			return;
-		case VECTOR3I: {
-			int32_t vax = reinterpret_cast<const Vector3i *>(a._data._mem)->x;
-			int32_t vbx = reinterpret_cast<const Vector3i *>(b._data._mem)->x;
-			int32_t vay = reinterpret_cast<const Vector3i *>(a._data._mem)->y;
-			int32_t vby = reinterpret_cast<const Vector3i *>(b._data._mem)->y;
-			int32_t vaz = reinterpret_cast<const Vector3i *>(a._data._mem)->z;
-			int32_t vbz = reinterpret_cast<const Vector3i *>(b._data._mem)->z;
-			r_dst = Vector3i(int32_t(vax + vbx * c + 0.5), int32_t(vay + vby * c + 0.5), int32_t(vaz + vbz * c + 0.5));
-		}
-			return;
-		case AABB: {
-			const ::AABB *ra = reinterpret_cast<const ::AABB *>(a._data._mem);
-			const ::AABB *rb = reinterpret_cast<const ::AABB *>(b._data._mem);
-			r_dst = ::AABB(ra->position + rb->position * c, ra->size + rb->size * c);
-		}
-			return;
-		case QUATERNION: {
-			Quaternion empty_rot;
-			const Quaternion *qa = reinterpret_cast<const Quaternion *>(a._data._mem);
-			const Quaternion *qb = reinterpret_cast<const Quaternion *>(b._data._mem);
-			r_dst = *qa * empty_rot.slerp(*qb, c);
-		}
-			return;
-		case COLOR: {
-			const Color *ca = reinterpret_cast<const Color *>(a._data._mem);
-			const Color *cb = reinterpret_cast<const Color *>(b._data._mem);
-			float new_r = ca->r + cb->r * c;
-			float new_g = ca->g + cb->g * c;
-			float new_b = ca->b + cb->b * c;
-			float new_a = ca->a + cb->a * c;
-			new_r = new_r > 1.0 ? 1.0 : new_r;
-			new_g = new_g > 1.0 ? 1.0 : new_g;
-			new_b = new_b > 1.0 ? 1.0 : new_b;
-			new_a = new_a > 1.0 ? 1.0 : new_a;
-			r_dst = Color(new_r, new_g, new_b, new_a);
-		}
-			return;
-		default: {
-			r_dst = c < 0.5 ? a : b;
-		}
-			return;
-	}
-}
-
-void Variant::interpolate(const Variant &a, const Variant &b, float c, Variant &r_dst) {
-	if (a.type != b.type) {
-		if (a.is_num() && b.is_num()) {
-			//not as efficient but..
-			real_t va = a;
-			real_t vb = b;
-			r_dst = va + (vb - va) * c;
-
-		} else {
-			r_dst = a;
-		}
-		return;
-	}
-
-	switch (a.type) {
-		case NIL: {
-			r_dst = Variant();
-		}
-			return;
-		case BOOL: {
-			r_dst = a;
-		}
-			return;
-		case INT: {
-			int64_t va = a._data._int;
-			int64_t vb = b._data._int;
-			r_dst = int(va + (vb - va) * c);
-		}
-			return;
-		case FLOAT: {
-			real_t va = a._data._float;
-			real_t vb = b._data._float;
-			r_dst = va + (vb - va) * c;
-		}
-			return;
-		case STRING: {
-			//this is pretty funny and bizarre, but artists like to use it for typewriter effects
-			String sa = *reinterpret_cast<const String *>(a._data._mem);
-			String sb = *reinterpret_cast<const String *>(b._data._mem);
-			String dst;
-			int sa_len = sa.length();
-			int sb_len = sb.length();
-			int csize = sa_len + (sb_len - sa_len) * c;
-			if (csize == 0) {
-				r_dst = "";
-				return;
-			}
-			dst.resize(csize + 1);
-			dst[csize] = 0;
-			int split = csize / 2;
-
-			for (int i = 0; i < csize; i++) {
-				char32_t chr = ' ';
-
-				if (i < split) {
-					if (i < sa.length()) {
-						chr = sa[i];
-					} else if (i < sb.length()) {
-						chr = sb[i];
-					}
-
-				} else {
-					if (i < sb.length()) {
-						chr = sb[i];
-					} else if (i < sa.length()) {
-						chr = sa[i];
-					}
-				}
-
-				dst[i] = chr;
-			}
-
-			r_dst = dst;
-		}
-			return;
-		case VECTOR2: {
-			r_dst = reinterpret_cast<const Vector2 *>(a._data._mem)->lerp(*reinterpret_cast<const Vector2 *>(b._data._mem), c);
-		}
-			return;
-		case VECTOR2I: {
-			int32_t vax = reinterpret_cast<const Vector2i *>(a._data._mem)->x;
-			int32_t vbx = reinterpret_cast<const Vector2i *>(b._data._mem)->x;
-			int32_t vay = reinterpret_cast<const Vector2i *>(a._data._mem)->y;
-			int32_t vby = reinterpret_cast<const Vector2i *>(b._data._mem)->y;
-			r_dst = Vector2i(int32_t(vax + vbx * c + 0.5), int32_t(vay + vby * c + 0.5));
-		}
-			return;
-
-		case RECT2: {
-			r_dst = Rect2(reinterpret_cast<const Rect2 *>(a._data._mem)->position.lerp(reinterpret_cast<const Rect2 *>(b._data._mem)->position, c), reinterpret_cast<const Rect2 *>(a._data._mem)->size.lerp(reinterpret_cast<const Rect2 *>(b._data._mem)->size, c));
-		}
-			return;
-		case RECT2I: {
-			const Rect2i *ra = reinterpret_cast<const Rect2i *>(a._data._mem);
-			const Rect2i *rb = reinterpret_cast<const Rect2i *>(b._data._mem);
-
-			int32_t vax = ra->position.x;
-			int32_t vay = ra->position.y;
-			int32_t vbx = ra->size.x;
-			int32_t vby = ra->size.y;
-			int32_t vcx = rb->position.x;
-			int32_t vcy = rb->position.y;
-			int32_t vdx = rb->size.x;
-			int32_t vdy = rb->size.y;
-
-			r_dst = Rect2i(int32_t(vax + vbx * c + 0.5), int32_t(vay + vby * c + 0.5), int32_t(vcx + vdx * c + 0.5), int32_t(vcy + vdy * c + 0.5));
-		}
-			return;
-
-		case VECTOR3: {
-			r_dst = reinterpret_cast<const Vector3 *>(a._data._mem)->lerp(*reinterpret_cast<const Vector3 *>(b._data._mem), c);
-		}
-			return;
-		case VECTOR3I: {
-			int32_t vax = reinterpret_cast<const Vector3i *>(a._data._mem)->x;
-			int32_t vbx = reinterpret_cast<const Vector3i *>(b._data._mem)->x;
-			int32_t vay = reinterpret_cast<const Vector3i *>(a._data._mem)->y;
-			int32_t vby = reinterpret_cast<const Vector3i *>(b._data._mem)->y;
-			int32_t vaz = reinterpret_cast<const Vector3i *>(a._data._mem)->z;
-			int32_t vbz = reinterpret_cast<const Vector3i *>(b._data._mem)->z;
-			r_dst = Vector3i(int32_t(vax + vbx * c + 0.5), int32_t(vay + vby * c + 0.5), int32_t(vaz + vbz * c + 0.5));
-		}
-			return;
-
-		case TRANSFORM2D: {
-			r_dst = a._data._transform2d->interpolate_with(*b._data._transform2d, c);
-		}
-			return;
-		case PLANE: {
-			r_dst = a;
-		}
-			return;
-		case QUATERNION: {
-			r_dst = reinterpret_cast<const Quaternion *>(a._data._mem)->slerp(*reinterpret_cast<const Quaternion *>(b._data._mem), c);
-		}
-			return;
-		case AABB: {
-			r_dst = ::AABB(a._data._aabb->position.lerp(b._data._aabb->position, c), a._data._aabb->size.lerp(b._data._aabb->size, c));
-		}
-			return;
-		case BASIS: {
-			r_dst = a._data._basis->lerp(*b._data._basis, c);
-		}
-			return;
-		case TRANSFORM3D: {
-			r_dst = a._data._transform3d->interpolate_with(*b._data._transform3d, c);
-		}
-			return;
-		case COLOR: {
-			r_dst = reinterpret_cast<const Color *>(a._data._mem)->lerp(*reinterpret_cast<const Color *>(b._data._mem), c);
-		}
-			return;
-		case STRING_NAME: {
-			r_dst = a;
-		}
-			return;
-		case NODE_PATH: {
-			r_dst = a;
-		}
-			return;
-		case RID: {
-			r_dst = a;
-		}
-			return;
-		case OBJECT: {
-			r_dst = a;
-		}
-			return;
-		case DICTIONARY: {
-		}
-			return;
-		case ARRAY: {
-			r_dst = a;
-		}
-			return;
-		case PACKED_BYTE_ARRAY: {
-			r_dst = a;
-		}
-			return;
-		case PACKED_INT32_ARRAY: {
-			const Vector<int32_t> *arr_a = &PackedArrayRef<int32_t>::get_array(a._data.packed_array);
-			const Vector<int32_t> *arr_b = &PackedArrayRef<int32_t>::get_array(b._data.packed_array);
-			int32_t sz = arr_a->size();
-			if (sz == 0 || arr_b->size() != sz) {
-				r_dst = a;
-			} else {
-				Vector<int32_t> v;
-				v.resize(sz);
-				{
-					int32_t *vw = v.ptrw();
-					const int32_t *ar = arr_a->ptr();
-					const int32_t *br = arr_b->ptr();
-
-					Variant va;
-					for (int32_t i = 0; i < sz; i++) {
-						Variant::interpolate(ar[i], br[i], c, va);
-						vw[i] = va;
-					}
-				}
-				r_dst = v;
-			}
-		}
-			return;
-		case PACKED_INT64_ARRAY: {
-			const Vector<int64_t> *arr_a = &PackedArrayRef<int64_t>::get_array(a._data.packed_array);
-			const Vector<int64_t> *arr_b = &PackedArrayRef<int64_t>::get_array(b._data.packed_array);
-			int64_t sz = arr_a->size();
-			if (sz == 0 || arr_b->size() != sz) {
-				r_dst = a;
-			} else {
-				Vector<int64_t> v;
-				v.resize(sz);
-				{
-					int64_t *vw = v.ptrw();
-					const int64_t *ar = arr_a->ptr();
-					const int64_t *br = arr_b->ptr();
-
-					Variant va;
-					for (int64_t i = 0; i < sz; i++) {
-						Variant::interpolate(ar[i], br[i], c, va);
-						vw[i] = va;
-					}
-				}
-				r_dst = v;
-			}
-		}
-			return;
-		case PACKED_FLOAT32_ARRAY: {
-			const Vector<float> *arr_a = &PackedArrayRef<float>::get_array(a._data.packed_array);
-			const Vector<float> *arr_b = &PackedArrayRef<float>::get_array(b._data.packed_array);
-			int sz = arr_a->size();
-			if (sz == 0 || arr_b->size() != sz) {
-				r_dst = a;
-			} else {
-				Vector<float> v;
-				v.resize(sz);
-				{
-					float *vw = v.ptrw();
-					const float *ar = arr_a->ptr();
-					const float *br = arr_b->ptr();
-
-					Variant va;
-					for (int i = 0; i < sz; i++) {
-						Variant::interpolate(ar[i], br[i], c, va);
-						vw[i] = va;
-					}
-				}
-				r_dst = v;
-			}
-		}
-			return;
-		case PACKED_FLOAT64_ARRAY: {
-			const Vector<double> *arr_a = &PackedArrayRef<double>::get_array(a._data.packed_array);
-			const Vector<double> *arr_b = &PackedArrayRef<double>::get_array(b._data.packed_array);
-			int sz = arr_a->size();
-			if (sz == 0 || arr_b->size() != sz) {
-				r_dst = a;
-			} else {
-				Vector<double> v;
-				v.resize(sz);
-				{
-					double *vw = v.ptrw();
-					const double *ar = arr_a->ptr();
-					const double *br = arr_b->ptr();
-
-					Variant va;
-					for (int i = 0; i < sz; i++) {
-						Variant::interpolate(ar[i], br[i], c, va);
-						vw[i] = va;
-					}
-				}
-				r_dst = v;
-			}
-		}
-			return;
-		case PACKED_STRING_ARRAY: {
-			r_dst = a;
-		}
-			return;
-		case PACKED_VECTOR2_ARRAY: {
-			const Vector<Vector2> *arr_a = &PackedArrayRef<Vector2>::get_array(a._data.packed_array);
-			const Vector<Vector2> *arr_b = &PackedArrayRef<Vector2>::get_array(b._data.packed_array);
-			int sz = arr_a->size();
-			if (sz == 0 || arr_b->size() != sz) {
-				r_dst = a;
-			} else {
-				Vector<Vector2> v;
-				v.resize(sz);
-				{
-					Vector2 *vw = v.ptrw();
-					const Vector2 *ar = arr_a->ptr();
-					const Vector2 *br = arr_b->ptr();
-
-					for (int i = 0; i < sz; i++) {
-						vw[i] = ar[i].lerp(br[i], c);
-					}
-				}
-				r_dst = v;
-			}
-		}
-			return;
-		case PACKED_VECTOR3_ARRAY: {
-			const Vector<Vector3> *arr_a = &PackedArrayRef<Vector3>::get_array(a._data.packed_array);
-			const Vector<Vector3> *arr_b = &PackedArrayRef<Vector3>::get_array(b._data.packed_array);
-			int sz = arr_a->size();
-			if (sz == 0 || arr_b->size() != sz) {
-				r_dst = a;
-			} else {
-				Vector<Vector3> v;
-				v.resize(sz);
-				{
-					Vector3 *vw = v.ptrw();
-					const Vector3 *ar = arr_a->ptr();
-					const Vector3 *br = arr_b->ptr();
-
-					for (int i = 0; i < sz; i++) {
-						vw[i] = ar[i].lerp(br[i], c);
-					}
-				}
-				r_dst = v;
-			}
-		}
-			return;
-		case PACKED_COLOR_ARRAY: {
-			const Vector<Color> *arr_a = &PackedArrayRef<Color>::get_array(a._data.packed_array);
-			const Vector<Color> *arr_b = &PackedArrayRef<Color>::get_array(b._data.packed_array);
-			int sz = arr_a->size();
-			if (sz == 0 || arr_b->size() != sz) {
-				r_dst = a;
-			} else {
-				Vector<Color> v;
-				v.resize(sz);
-				{
-					Color *vw = v.ptrw();
-					const Color *ar = arr_a->ptr();
-					const Color *br = arr_b->ptr();
-
-					for (int i = 0; i < sz; i++) {
-						vw[i] = ar[i].lerp(br[i], c);
-					}
-				}
-				r_dst = v;
-			}
-		}
-			return;
-		default: {
-			r_dst = a;
-		}
 	}
 }
 

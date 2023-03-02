@@ -131,14 +131,14 @@ struct RearrangementSubtable
 	  hb_glyph_info_t *info = buffer->info;
 	  hb_glyph_info_t buf[4];
 
-	  memcpy (buf, info + start, l * sizeof (buf[0]));
-	  memcpy (buf + 2, info + end - r, r * sizeof (buf[0]));
+	  hb_memcpy (buf, info + start, l * sizeof (buf[0]));
+	  hb_memcpy (buf + 2, info + end - r, r * sizeof (buf[0]));
 
 	  if (l != r)
 	    memmove (info + start + r, info + start + l, (end - start - l - r) * sizeof (buf[0]));
 
-	  memcpy (info + start, buf + 2, r * sizeof (buf[0]));
-	  memcpy (info + end - l, buf, l * sizeof (buf[0]));
+	  hb_memcpy (info + start, buf + 2, r * sizeof (buf[0]));
+	  hb_memcpy (info + end - l, buf, l * sizeof (buf[0]));
 	  if (reverse_l)
 	  {
 	    buf[0] = info[end - 1];
@@ -980,6 +980,15 @@ struct Chain
 	  setting = HB_AAT_LAYOUT_FEATURE_SELECTOR_LOWER_CASE_SMALL_CAPS;
 	  goto retry;
 	}
+#ifndef HB_NO_AAT
+	else if (type == HB_AAT_LAYOUT_FEATURE_TYPE_LANGUAGE_TAG_TYPE && setting &&
+		 /* TODO: Rudimentary language matching. */
+		 hb_language_matches (map->face->table.ltag->get_language (setting - 1), map->props.language))
+	{
+	  flags &= feature.disableFlags;
+	  flags |= feature.enableFlags;
+	}
+#endif
       }
     }
     return flags;

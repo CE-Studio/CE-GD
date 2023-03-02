@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="RichTextEffect" inherits="Resource" version="4.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+<class name="RichTextEffect" inherits="Resource" version="4.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
 	<brief_description>
 		A custom effect for use with [RichTextLabel].
 	</brief_description>
@@ -13,7 +13,7 @@
 		[/gdscript]
 		[csharp]
 		// The RichTextEffect will be usable like this: `[example]Some text[/example]`
-		public string bbcode = "example";
+		string bbcode = "example";
 		[/csharp]
 		[/codeblocks]
 		[b]Note:[/b] As soon as a [RichTextLabel] contains at least one [RichTextEffect], it will continuously process the effect unless the project is paused. This may impact battery life negatively.
@@ -25,9 +25,9 @@
 	<methods>
 		<method name="_process_custom_fx" qualifiers="virtual const">
 			<return type="bool" />
-			<argument index="0" name="char_fx" type="CharFXTransform" />
+			<param index="0" name="char_fx" type="CharFXTransform" />
 			<description>
-				Override this method to modify properties in [code]char_fx[/code]. The method must return [code]true[/code] if the character could be transformed successfully. If the method returns [code]false[/code], it will skip transformation to avoid displaying broken text.
+				Override this method to modify properties in [param char_fx]. The method must return [code]true[/code] if the character could be transformed successfully. If the method returns [code]false[/code], it will skip transformation to avoid displaying broken text.
 			</description>
 		</method>
 	</methods>

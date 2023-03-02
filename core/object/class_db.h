@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  class_db.h                                                           */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  class_db.h                                                            */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef CLASS_DB_H
 #define CLASS_DB_H
@@ -39,6 +39,8 @@
 // Needs to come after method_bind and object have been included.
 #include "core/object/callable_method_pointer.h"
 #include "core/templates/hash_set.h"
+
+#include <type_traits>
 
 #define DEFVAL(m_defval) (m_defval)
 
@@ -100,7 +102,7 @@ public:
 		ClassInfo *inherits_ptr = nullptr;
 		void *class_ptr = nullptr;
 
-		ObjectNativeExtension *native_extension = nullptr;
+		ObjectGDExtension *gdextension = nullptr;
 
 		HashMap<StringName, MethodBind *> method_map;
 		HashMap<StringName, int64_t> constant_map;
@@ -120,6 +122,7 @@ public:
 		List<MethodInfo> virtual_methods;
 		HashMap<StringName, MethodInfo> virtual_methods_map;
 		HashMap<StringName, Vector<Error>> method_error_values;
+		HashMap<StringName, List<StringName>> linked_properties;
 #endif
 		HashMap<StringName, PropertySetGet> property_setget;
 
@@ -202,7 +205,7 @@ public:
 		//nothing
 	}
 
-	static void register_extension_class(ObjectNativeExtension *p_extension);
+	static void register_extension_class(ObjectGDExtension *p_extension);
 	static void unregister_extension_class(const StringName &p_class);
 
 	template <class T>
@@ -240,6 +243,24 @@ public:
 
 	static uint64_t get_api_hash(APIType p_api);
 
+	template <typename>
+	struct member_function_traits;
+
+	template <typename R, typename T, typename... Args>
+	struct member_function_traits<R (T::*)(Args...)> {
+		using return_type = R;
+	};
+
+	template <typename R, typename T, typename... Args>
+	struct member_function_traits<R (T::*)(Args...) const> {
+		using return_type = R;
+	};
+
+	template <typename R, typename... Args>
+	struct member_function_traits<R (*)(Args...)> {
+		using return_type = R;
+	};
+
 	template <class N, class M, typename... VarArgs>
 	static MethodBind *bind_method(N p_method_name, M p_method, VarArgs... p_args) {
 		Variant args[sizeof...(p_args) + 1] = { p_args..., Variant() }; // +1 makes sure zero sized arrays are also supported.
@@ -248,6 +269,9 @@ public:
 			argptrs[i] = &args[i];
 		}
 		MethodBind *bind = create_method_bind(p_method);
+		if constexpr (std::is_same<typename member_function_traits<M>::return_type, Object *>::value) {
+			bind->set_return_type_is_raw_object_ptr(true);
+		}
 		return bind_methodfi(METHOD_FLAGS_DEFAULT, bind, p_method_name, sizeof...(p_args) == 0 ? nullptr : (const Variant **)argptrs, sizeof...(p_args));
 	}
 
@@ -260,6 +284,9 @@ public:
 		}
 		MethodBind *bind = create_static_method_bind(p_method);
 		bind->set_instance_class(p_class);
+		if constexpr (std::is_same<typename member_function_traits<M>::return_type, Object *>::value) {
+			bind->set_return_type_is_raw_object_ptr(true);
+		}
 		return bind_methodfi(METHOD_FLAGS_DEFAULT, bind, p_method_name, sizeof...(p_args) == 0 ? nullptr : (const Variant **)argptrs, sizeof...(p_args));
 	}
 
@@ -272,6 +299,9 @@ public:
 
 		bind->set_name(p_name);
 		bind->set_default_arguments(p_default_args);
+		if constexpr (std::is_same<typename member_function_traits<M>::return_type, Object *>::value) {
+			bind->set_return_type_is_raw_object_ptr(true);
+		}
 
 		String instance_type = bind->get_instance_class();
 
@@ -312,6 +342,7 @@ public:
 	static void add_linked_property(const StringName &p_class, const String &p_property, const String &p_linked_property);
 	static void get_property_list(const StringName &p_class, List<PropertyInfo> *p_list, bool p_no_inheritance = false, const Object *p_validator = nullptr);
 	static bool get_property_info(const StringName &p_class, const StringName &p_property, PropertyInfo *r_info, bool p_no_inheritance = false, const Object *p_validator = nullptr);
+	static void get_linked_properties_info(const StringName &p_class, const StringName &p_property, List<StringName> *r_properties, bool p_no_inheritance = false);
 	static bool set_property(Object *p_object, const StringName &p_property, const Variant &p_value, bool *r_valid = nullptr);
 	static bool get_property(Object *p_object, const StringName &p_property, Variant &r_value);
 	static bool has_property(const StringName &p_class, const StringName &p_property, bool p_no_inheritance = false);
@@ -357,6 +388,7 @@ public:
 	static bool is_resource_extension(const StringName &p_extension);
 
 	static void add_compatibility_class(const StringName &p_class, const StringName &p_fallback);
+	static StringName get_compatibility_class(const StringName &p_class);
 
 	static void set_current_api(APIType p_api);
 	static APIType get_current_api();
@@ -369,16 +401,16 @@ public:
 	static uint64_t get_native_struct_size(const StringName &p_name); // Used for asserting
 };
 
-#ifdef DEBUG_METHODS_ENABLED
-
-#define BIND_CONSTANT(m_constant) \
-	::ClassDB::bind_integer_constant(get_class_static(), StringName(), #m_constant, m_constant);
-
 #define BIND_ENUM_CONSTANT(m_constant) \
 	::ClassDB::bind_integer_constant(get_class_static(), __constant_get_enum_name(m_constant, #m_constant), #m_constant, m_constant);
 
 #define BIND_BITFIELD_FLAG(m_constant) \
 	::ClassDB::bind_integer_constant(get_class_static(), __constant_get_bitfield_name(m_constant, #m_constant), #m_constant, m_constant, true);
+
+#define BIND_CONSTANT(m_constant) \
+	::ClassDB::bind_integer_constant(get_class_static(), StringName(), #m_constant, m_constant);
+
+#ifdef DEBUG_METHODS_ENABLED
 
 _FORCE_INLINE_ void errarray_add_str(Vector<Error> &arr) {
 }
@@ -405,29 +437,20 @@ _FORCE_INLINE_ Vector<Error> errarray(P... p_args) {
 
 #else
 
-#define BIND_CONSTANT(m_constant) \
-	::ClassDB::bind_integer_constant(get_class_static(), StringName(), #m_constant, m_constant);
-
-#define BIND_ENUM_CONSTANT(m_constant) \
-	::ClassDB::bind_integer_constant(get_class_static(), StringName(), #m_constant, m_constant);
-
-#define BIND_BITFIELD_FLAG(m_constant) \
-	::ClassDB::bind_integer_constant(get_class_static(), StringName(), #m_constant, m_constant, true);
-
 #define BIND_METHOD_ERR_RETURN_DOC(m_method, ...)
 
 #endif
 
-#define GDREGISTER_CLASS(m_class)                    \
-	if (!GD_IS_DEFINED(ClassDB_Disable_##m_class)) { \
-		::ClassDB::register_class<m_class>();        \
+#define GDREGISTER_CLASS(m_class)             \
+	if (m_class::_class_is_enabled) {         \
+		::ClassDB::register_class<m_class>(); \
 	}
-#define GDREGISTER_VIRTUAL_CLASS(m_class)            \
-	if (!GD_IS_DEFINED(ClassDB_Disable_##m_class)) { \
-		::ClassDB::register_class<m_class>(true);    \
+#define GDREGISTER_VIRTUAL_CLASS(m_class)         \
+	if (m_class::_class_is_enabled) {             \
+		::ClassDB::register_class<m_class>(true); \
 	}
 #define GDREGISTER_ABSTRACT_CLASS(m_class)             \
-	if (!GD_IS_DEFINED(ClassDB_Disable_##m_class)) {   \
+	if (m_class::_class_is_enabled) {                  \
 		::ClassDB::register_abstract_class<m_class>(); \
 	}
 

@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  plugin_config_dialog.cpp                                             */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  plugin_config_dialog.cpp                                              */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "plugin_config_dialog.h"
 
@@ -36,6 +36,7 @@
 #include "editor/editor_plugin.h"
 #include "editor/editor_scale.h"
 #include "editor/project_settings_editor.h"
+#include "scene/gui/grid_container.h"
 
 void PluginConfigDialog::_clear_fields() {
 	name_edit->set_text("");
@@ -62,7 +63,7 @@ void PluginConfigDialog::_on_confirmed() {
 	if (script_name.get_extension().is_empty()) {
 		script_name += "." + ext;
 	}
-	String script_path = path.plus_file(script_name);
+	String script_path = path.path_join(script_name);
 
 	Ref<ConfigFile> cf = memnew(ConfigFile);
 	cf->set_value("plugin", "name", name_edit->get_text());
@@ -71,7 +72,7 @@ void PluginConfigDialog::_on_confirmed() {
 	cf->set_value("plugin", "version", version_edit->get_text());
 	cf->set_value("plugin", "script", script_name);
 
-	cf->save(path.plus_file("plugin.cfg"));
+	cf->save(path.path_join("plugin.cfg"));
 
 	if (!_edit_mode) {
 		String class_name = script_name.get_basename();
@@ -80,18 +81,18 @@ void PluginConfigDialog::_on_confirmed() {
 		if (!templates.is_empty()) {
 			template_content = templates[0].content;
 		}
-		Ref<Script> script = ScriptServer::get_language(lang_idx)->make_template(template_content, class_name, "EditorPlugin");
-		script->set_path(script_path);
-		ResourceSaver::save(script_path, script);
+		Ref<Script> scr = ScriptServer::get_language(lang_idx)->make_template(template_content, class_name, "EditorPlugin");
+		scr->set_path(script_path, true);
+		ResourceSaver::save(scr);
 
-		emit_signal(SNAME("plugin_ready"), script.ptr(), active_edit->is_pressed() ? _to_absolute_plugin_path(_get_subfolder()) : "");
+		emit_signal(SNAME("plugin_ready"), scr.ptr(), active_edit->is_pressed() ? _to_absolute_plugin_path(_get_subfolder()) : "");
 	} else {
 		EditorNode::get_singleton()->get_project_settings()->update_plugins();
 	}
 	_clear_fields();
 }
 
-void PluginConfigDialog::_on_cancelled() {
+void PluginConfigDialog::_on_canceled() {
 	_clear_fields();
 }
 
@@ -111,32 +112,32 @@ void PluginConfigDialog::_on_required_text_changed(const String &) {
 	name_validation->set_texture(valid_icon);
 	subfolder_validation->set_texture(valid_icon);
 	script_validation->set_texture(valid_icon);
-	name_validation->set_tooltip("");
-	subfolder_validation->set_tooltip("");
-	script_validation->set_tooltip("");
+	name_validation->set_tooltip_text("");
+	subfolder_validation->set_tooltip_text("");
+	script_validation->set_tooltip_text("");
 
 	// Change valid status to invalid depending on conditions.
 	Vector<String> errors;
 	if (name_edit->get_text().is_empty()) {
 		is_valid = false;
 		name_validation->set_texture(invalid_icon);
-		name_validation->set_tooltip(TTR("Plugin name cannot be blank."));
+		name_validation->set_tooltip_text(TTR("Plugin name cannot be blank."));
 	}
 	if ((!script_edit->get_text().get_extension().is_empty() && script_edit->get_text().get_extension() != ext) || script_edit->get_text().ends_with(".")) {
 		is_valid = false;
 		script_validation->set_texture(invalid_icon);
-		script_validation->set_tooltip(vformat(TTR("Script extension must match chosen language extension (.%s)."), ext));
+		script_validation->set_tooltip_text(vformat(TTR("Script extension must match chosen language extension (.%s)."), ext));
 	}
 	if (!subfolder_edit->get_text().is_empty() && !subfolder_edit->get_text().is_valid_filename()) {
 		is_valid = false;
 		subfolder_validation->set_texture(invalid_icon);
-		subfolder_validation->set_tooltip(TTR("Subfolder name is not a valid folder name."));
+		subfolder_validation->set_tooltip_text(TTR("Subfolder name is not a valid folder name."));
 	} else {
 		String path = "res://addons/" + _get_subfolder();
 		if (!_edit_mode && DirAccess::exists(path)) { // Only show this error if in "create" mode.
 			is_valid = false;
 			subfolder_validation->set_texture(invalid_icon);
-			subfolder_validation->set_tooltip(TTR("Subfolder cannot be one which already exists."));
+			subfolder_validation->set_tooltip_text(TTR("Subfolder cannot be one which already exists."));
 		}
 	}
 
@@ -161,7 +162,7 @@ void PluginConfigDialog::_notification(int p_what) {
 
 		case NOTIFICATION_READY: {
 			connect("confirmed", callable_mp(this, &PluginConfigDialog::_on_confirmed));
-			get_cancel_button()->connect("pressed", callable_mp(this, &PluginConfigDialog::_on_cancelled));
+			get_cancel_button()->connect("pressed", callable_mp(this, &PluginConfigDialog::_on_canceled));
 		} break;
 	}
 }
@@ -218,6 +219,7 @@ PluginConfigDialog::PluginConfigDialog() {
 
 	GridContainer *grid = memnew(GridContainer);
 	grid->set_columns(3);
+	grid->set_v_size_flags(Control::SIZE_EXPAND_FILL);
 	vbox->add_child(grid);
 
 	// Plugin Name
@@ -233,6 +235,7 @@ PluginConfigDialog::PluginConfigDialog() {
 	name_edit = memnew(LineEdit);
 	name_edit->connect("text_changed", callable_mp(this, &PluginConfigDialog::_on_required_text_changed));
 	name_edit->set_placeholder("MyPlugin");
+	name_edit->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	grid->add_child(name_edit);
 
 	// Subfolder
@@ -247,6 +250,7 @@ PluginConfigDialog::PluginConfigDialog() {
 
 	subfolder_edit = memnew(LineEdit);
 	subfolder_edit->set_placeholder("\"my_plugin\" -> res://addons/my_plugin");
+	subfolder_edit->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	subfolder_edit->connect("text_changed", callable_mp(this, &PluginConfigDialog::_on_required_text_changed));
 	grid->add_child(subfolder_edit);
 
@@ -262,6 +266,8 @@ PluginConfigDialog::PluginConfigDialog() {
 	desc_edit = memnew(TextEdit);
 	desc_edit->set_custom_minimum_size(Size2(400, 80) * EDSCALE);
 	desc_edit->set_line_wrapping_mode(TextEdit::LineWrappingMode::LINE_WRAPPING_BOUNDARY);
+	desc_edit->set_h_size_flags(Control::SIZE_EXPAND_FILL);
+	desc_edit->set_v_size_flags(Control::SIZE_EXPAND_FILL);
 	grid->add_child(desc_edit);
 
 	// Author
@@ -275,6 +281,7 @@ PluginConfigDialog::PluginConfigDialog() {
 
 	author_edit = memnew(LineEdit);
 	author_edit->set_placeholder("Godette");
+	author_edit->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	grid->add_child(author_edit);
 
 	// Version
@@ -288,6 +295,7 @@ PluginConfigDialog::PluginConfigDialog() {
 
 	version_edit = memnew(LineEdit);
 	version_edit->set_placeholder("1.0");
+	version_edit->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	grid->add_child(version_edit);
 
 	// Language dropdown
@@ -325,6 +333,7 @@ PluginConfigDialog::PluginConfigDialog() {
 	script_edit = memnew(LineEdit);
 	script_edit->connect("text_changed", callable_mp(this, &PluginConfigDialog::_on_required_text_changed));
 	script_edit->set_placeholder("\"plugin.gd\" -> res://addons/my_plugin/plugin.gd");
+	script_edit->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	grid->add_child(script_edit);
 
 	// Activate now checkbox

@@ -1,36 +1,37 @@
-/*************************************************************************/
-/*  rich_text_label.h                                                    */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  rich_text_label.h                                                     */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef RICH_TEXT_LABEL_H
 #define RICH_TEXT_LABEL_H
 
+#include "core/object/worker_thread_pool.h"
 #include "rich_text_effect.h"
 #include "scene/gui/popup_menu.h"
 #include "scene/gui/scroll_bar.h"
@@ -80,9 +81,20 @@ public:
 	enum MenuItems {
 		MENU_COPY,
 		MENU_SELECT_ALL,
+		MENU_MAX
+	};
+
+	enum DefaultFont {
+		NORMAL_FONT,
+		BOLD_FONT,
+		ITALICS_FONT,
+		BOLD_ITALICS_FONT,
+		MONO_FONT,
+		CUSTOM_FONT,
 	};
 
 protected:
+	virtual void _update_theme_item_cache() override;
 	void _notification(int p_what);
 	static void _bind_methods();
 
@@ -177,7 +189,11 @@ private:
 	};
 
 	struct ItemFont : public Item {
+		DefaultFont def_font = CUSTOM_FONT;
 		Ref<Font> font;
+		bool variation = false;
+		bool def_size = false;
+		int font_size = 0;
 		ItemFont() { type = ITEM_FONT; }
 	};
 
@@ -254,7 +270,9 @@ private:
 
 		LocalVector<Column> columns;
 		LocalVector<float> rows;
+		LocalVector<float> rows_baseline;
 
+		int align_to_row = -1;
 		int total_width = 0;
 		int total_height = 0;
 		InlineAlignment inline_align = INLINE_ALIGNMENT_TOP;
@@ -270,6 +288,7 @@ private:
 
 	struct ItemFX : public Item {
 		double elapsed_time = 0.f;
+		bool connected = true;
 	};
 
 	struct ItemShake : public ItemFX {
@@ -286,14 +305,14 @@ private:
 			_current_rng = Math::rand();
 		}
 
-		uint64_t offset_random(int index) {
-			return (_current_rng >> (index % 64)) |
-					(_current_rng << (64 - (index % 64)));
+		uint64_t offset_random(int p_index) {
+			return (_current_rng >> (p_index % 64)) |
+					(_current_rng << (64 - (p_index % 64)));
 		}
 
-		uint64_t offset_previous_random(int index) {
-			return (_previous_rng >> (index % 64)) |
-					(_previous_rng << (64 - (index % 64)));
+		uint64_t offset_previous_random(int p_index) {
+			return (_previous_rng >> (p_index % 64)) |
+					(_previous_rng << (64 - (p_index % 64)));
 		}
 	};
 
@@ -352,7 +371,7 @@ private:
 	Item *current = nullptr;
 	ItemFrame *current_frame = nullptr;
 
-	Thread thread;
+	WorkerThreadPool::TaskID task = WorkerThreadPool::INVALID_TASK_ID;
 	Mutex data_mutex;
 	bool threaded = false;
 	std::atomic<bool> stop_thread;
@@ -381,7 +400,7 @@ private:
 	int tab_size = 4;
 	bool underline_meta = true;
 	bool underline_hint = true;
-	bool override_selected_font_color = false;
+	bool use_selected_font_color = false;
 
 	HorizontalAlignment default_alignment = HORIZONTAL_ALIGNMENT_LEFT;
 
@@ -392,7 +411,8 @@ private:
 
 	void _invalidate_current_line(ItemFrame *p_frame);
 
-	static void _thread_function(void *self);
+	void _thread_function(void *p_userdata);
+	void _thread_end();
 	void _stop_thread();
 	bool _validate_line_caches();
 	void _process_line_caches();
@@ -435,15 +455,15 @@ private:
 	// Context menu.
 	PopupMenu *menu = nullptr;
 	void _generate_context_menu();
+	void _update_context_menu();
 	Key _get_menu_action_accelerator(const String &p_action);
-	void _menu_option(int p_option);
 
 	int visible_characters = -1;
-	float percent_visible = 1.0;
+	float visible_ratio = 1.0;
 	TextServer::VisibleCharactersBehavior visible_chars_behavior = TextServer::VC_CHARS_BEFORE_SHAPING;
 
 	bool _is_click_inside_selection() const;
-	void _find_click(ItemFrame *p_frame, const Point2i &p_click, ItemFrame **r_click_frame = nullptr, int *r_click_line = nullptr, Item **r_click_item = nullptr, int *r_click_char = nullptr, bool *r_outside = nullptr);
+	void _find_click(ItemFrame *p_frame, const Point2i &p_click, ItemFrame **r_click_frame = nullptr, int *r_click_line = nullptr, Item **r_click_item = nullptr, int *r_click_char = nullptr, bool *r_outside = nullptr, bool p_meta = false);
 
 	String _get_line_text(ItemFrame *p_frame, int p_line, Selection p_sel) const;
 	bool _search_line(ItemFrame *p_frame, int p_line, const String &p_string, int p_char_idx, bool p_reverse_search);
@@ -454,7 +474,7 @@ private:
 
 	void _update_line_font(ItemFrame *p_frame, int p_line, const Ref<Font> &p_base_font, int p_base_font_size);
 	int _draw_line(ItemFrame *p_frame, int p_line, const Vector2 &p_ofs, int p_width, const Color &p_base_color, int p_outline_size, const Color &p_outline_color, const Color &p_font_shadow_color, int p_shadow_outline_size, const Point2 &p_shadow_ofs, int &r_processed_glyphs);
-	float _find_click_in_line(ItemFrame *p_frame, int p_line, const Vector2 &p_ofs, int p_width, const Point2i &p_click, ItemFrame **r_click_frame = nullptr, int *r_click_line = nullptr, Item **r_click_item = nullptr, int *r_click_char = nullptr, bool p_table = false);
+	float _find_click_in_line(ItemFrame *p_frame, int p_line, const Vector2 &p_ofs, int p_width, const Point2i &p_click, ItemFrame **r_click_frame = nullptr, int *r_click_line = nullptr, Item **r_click_item = nullptr, int *r_click_char = nullptr, bool p_table = false, bool p_meta = false);
 
 	String _roman(int p_num, bool p_capitalize) const;
 	String _letters(int p_num, bool p_capitalize) const;
@@ -462,8 +482,8 @@ private:
 	Item *_find_indentable(Item *p_item);
 	Item *_get_item_at_pos(Item *p_item_from, Item *p_item_to, int p_position);
 	void _find_frame(Item *p_item, ItemFrame **r_frame, int *r_line);
-	int _find_font_size(Item *p_item);
-	Ref<Font> _find_font(Item *p_item);
+	ItemFontSize *_find_font_size(Item *p_item);
+	ItemFont *_find_font(Item *p_item);
 	int _find_outline_size(Item *p_item, int p_default);
 	ItemList *_find_list_item(Item *p_item);
 	ItemDropcap *_find_dc_item(Item *p_item);
@@ -507,18 +527,58 @@ private:
 	bool use_bbcode = false;
 	String text;
 
-	int fixed_width = -1;
+	bool fit_content = false;
 
-	bool fit_content_height = false;
+	struct ThemeCache {
+		Ref<StyleBox> normal_style;
+		Ref<StyleBox> focus_style;
+		Ref<StyleBox> progress_bg_style;
+		Ref<StyleBox> progress_fg_style;
+
+		int line_separation;
+
+		Ref<Font> normal_font;
+		int normal_font_size;
+
+		Color default_color;
+		Color font_selected_color;
+		Color selection_color;
+		Color font_outline_color;
+		Color font_shadow_color;
+		int shadow_outline_size;
+		int shadow_offset_x;
+		int shadow_offset_y;
+		int outline_size;
+		Color outline_color;
+
+		Ref<Font> bold_font;
+		int bold_font_size;
+		Ref<Font> bold_italics_font;
+		int bold_italics_font_size;
+		Ref<Font> italics_font;
+		int italics_font_size;
+		Ref<Font> mono_font;
+		int mono_font_size;
+
+		int table_h_separation;
+		int table_v_separation;
+		Color table_odd_row_bg;
+		Color table_even_row_bg;
+		Color table_border;
+
+		float base_scale = 1.0;
+	} theme_cache;
 
 public:
 	String get_parsed_text() const;
 	void add_text(const String &p_text);
-	void add_image(const Ref<Texture2D> &p_image, const int p_width = 0, const int p_height = 0, const Color &p_color = Color(1.0, 1.0, 1.0), InlineAlignment p_alignment = INLINE_ALIGNMENT_CENTER);
+	void add_image(const Ref<Texture2D> &p_image, const int p_width = 0, const int p_height = 0, const Color &p_color = Color(1.0, 1.0, 1.0), InlineAlignment p_alignment = INLINE_ALIGNMENT_CENTER, const Rect2 &p_region = Rect2(0, 0, 0, 0));
 	void add_newline();
-	bool remove_line(const int p_line);
+	bool remove_paragraph(const int p_paragraph);
 	void push_dropcap(const String &p_string, const Ref<Font> &p_font, int p_size, const Rect2 &p_dropcap_margins = Rect2(), const Color &p_color = Color(1, 1, 1), int p_ol_size = 0, const Color &p_ol_color = Color(0, 0, 0, 0));
-	void push_font(const Ref<Font> &p_font);
+	void _push_def_font(DefaultFont p_def_font);
+	void _push_def_font_var(DefaultFont p_def_font, const Ref<Font> &p_font, int p_size = -1);
+	void push_font(const Ref<Font> &p_font, int p_size = 0);
 	void push_font_size(int p_font_size);
 	void push_outline_size(int p_font_size);
 	void push_normal();
@@ -535,11 +595,11 @@ public:
 	void push_list(int p_level, ListType p_list, bool p_capitalize);
 	void push_meta(const Variant &p_meta);
 	void push_hint(const String &p_string);
-	void push_table(int p_columns, InlineAlignment p_alignment = INLINE_ALIGNMENT_TOP);
+	void push_table(int p_columns, InlineAlignment p_alignment = INLINE_ALIGNMENT_TOP, int p_align_to_row = -1);
 	void push_fade(int p_start_index, int p_length);
-	void push_shake(int p_strength, float p_rate);
-	void push_wave(float p_frequency, float p_amplitude);
-	void push_tornado(float p_frequency, float p_radius);
+	void push_shake(int p_strength, float p_rate, bool p_connected);
+	void push_wave(float p_frequency, float p_amplitude, bool p_connected);
+	void push_tornado(float p_frequency, float p_radius, bool p_connected);
 	void push_rainbow(float p_saturation, float p_value, float p_frequency);
 	void push_bgcolor(const Color &p_color);
 	void push_fgcolor(const Color &p_color);
@@ -581,8 +641,8 @@ public:
 	void set_shortcut_keys_enabled(bool p_enabled);
 	bool is_shortcut_keys_enabled() const;
 
-	void set_fit_content_height(bool p_enabled);
-	bool is_fit_content_height_enabled() const;
+	void set_fit_content(bool p_enabled);
+	bool is_fit_content_enabled() const;
 
 	bool search(const String &p_string, bool p_from_selection = false, bool p_search_previous = false);
 
@@ -599,6 +659,8 @@ public:
 
 	int get_content_height() const;
 	int get_content_width() const;
+
+	void scroll_to_selection();
 
 	VScrollBar *get_v_scroll_bar() { return vscroll; }
 
@@ -627,6 +689,7 @@ public:
 	// Context menu.
 	PopupMenu *get_menu() const;
 	bool is_menu_visible() const;
+	void menu_option(int p_option);
 
 	void parse_bbcode(const String &p_bbcode);
 	void append_text(const String &p_bbcode);
@@ -659,8 +722,8 @@ public:
 	int get_total_character_count() const;
 	int get_total_glyph_count() const;
 
-	void set_percent_visible(float p_percent);
-	float get_percent_visible() const;
+	void set_visible_ratio(float p_ratio);
+	float get_visible_ratio() const;
 
 	TextServer::VisibleCharactersBehavior get_visible_characters_behavior() const;
 	void set_visible_characters_behavior(TextServer::VisibleCharactersBehavior p_behavior);
@@ -670,7 +733,6 @@ public:
 
 	void install_effect(const Variant effect);
 
-	void set_fixed_size_to_width(int p_width);
 	virtual Size2 get_minimum_size() const override;
 
 	RichTextLabel(const String &p_text = String());
@@ -678,6 +740,6 @@ public:
 };
 
 VARIANT_ENUM_CAST(RichTextLabel::ListType);
-VARIANT_ENUM_CAST(RichTextLabel::ItemType);
+VARIANT_ENUM_CAST(RichTextLabel::MenuItems);
 
 #endif // RICH_TEXT_LABEL_H

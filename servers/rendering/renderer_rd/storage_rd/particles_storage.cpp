@@ -1,34 +1,35 @@
-/*************************************************************************/
-/*  particles_storage.cpp                                                */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  particles_storage.cpp                                                 */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "particles_storage.h"
+
 #include "servers/rendering/renderer_rd/renderer_compositor_rd.h"
 #include "servers/rendering/rendering_server_globals.h"
 #include "texture_storage.h"
@@ -54,8 +55,8 @@ ParticlesStorage::ParticlesStorage() {
 		particles_modes.push_back("");
 		particles_shader.shader.initialize(particles_modes, String());
 	}
-	MaterialStorage::get_singleton()->shader_set_data_request_function(SHADER_TYPE_PARTICLES, _create_particles_shader_funcs);
-	MaterialStorage::get_singleton()->material_set_data_request_function(SHADER_TYPE_PARTICLES, _create_particles_material_funcs);
+	MaterialStorage::get_singleton()->shader_set_data_request_function(MaterialStorage::SHADER_TYPE_PARTICLES, _create_particles_shader_funcs);
+	MaterialStorage::get_singleton()->material_set_data_request_function(MaterialStorage::SHADER_TYPE_PARTICLES, _create_particles_material_funcs);
 
 	{
 		ShaderCompiler::DefaultIdentifierActions actions;
@@ -102,7 +103,7 @@ ParticlesStorage::ParticlesStorage() {
 		actions.render_mode_defines["disable_force"] = "#define DISABLE_FORCE\n";
 		actions.render_mode_defines["disable_velocity"] = "#define DISABLE_VELOCITY\n";
 		actions.render_mode_defines["keep_data"] = "#define ENABLE_KEEP_DATA\n";
-		actions.render_mode_defines["collision_use_scale"] = "#define USE_COLLISON_SCALE\n";
+		actions.render_mode_defines["collision_use_scale"] = "#define USE_COLLISION_SCALE\n";
 
 		actions.sampler_array_name = "material_samplers";
 		actions.base_texture_binding_index = 1;
@@ -112,7 +113,7 @@ ParticlesStorage::ParticlesStorage() {
 
 		actions.default_filter = ShaderLanguage::FILTER_LINEAR_MIPMAP;
 		actions.default_repeat = ShaderLanguage::REPEAT_ENABLE;
-		actions.global_buffer_array_variable = "global_variables.data";
+		actions.global_buffer_array_variable = "global_shader_uniforms.data";
 
 		particles_shader.compiler.initialize(actions);
 	}
@@ -134,7 +135,7 @@ void process() {
 		material_storage->material_initialize(particles_shader.default_material);
 		material_storage->material_set_shader(particles_shader.default_material, particles_shader.default_shader);
 
-		ParticlesMaterialData *md = static_cast<ParticlesMaterialData *>(material_storage->material_get_data(particles_shader.default_material, SHADER_TYPE_PARTICLES));
+		ParticleProcessMaterialData *md = static_cast<ParticleProcessMaterialData *>(material_storage->material_get_data(particles_shader.default_material, MaterialStorage::SHADER_TYPE_PARTICLES));
 		particles_shader.default_shader_rd = particles_shader.shader.version_get_shader(md->shader_data->version, 0);
 
 		Vector<RD::Uniform> uniforms;
@@ -164,7 +165,7 @@ void process() {
 			RD::Uniform u;
 			u.uniform_type = RD::UNIFORM_TYPE_STORAGE_BUFFER;
 			u.binding = 2;
-			u.append_id(material_storage->global_variables_get_storage_buffer());
+			u.append_id(material_storage->global_shader_uniforms_get_storage_buffer());
 			uniforms.push_back(u);
 		}
 
@@ -206,6 +207,21 @@ ParticlesStorage::~ParticlesStorage() {
 	material_storage->shader_free(particles_shader.default_shader);
 
 	singleton = nullptr;
+}
+
+bool ParticlesStorage::free(RID p_rid) {
+	if (owns_particles(p_rid)) {
+		particles_free(p_rid);
+		return true;
+	} else if (owns_particles_collision(p_rid)) {
+		particles_collision_free(p_rid);
+		return true;
+	} else if (owns_particles_collision_instance(p_rid)) {
+		particles_collision_instance_free(p_rid);
+		return true;
+	}
+
+	return false;
 }
 
 /* PARTICLES */
@@ -409,7 +425,7 @@ void ParticlesStorage::particles_set_trails(RID p_particles, bool p_enable, doub
 	p_length = MIN(10.0, p_length);
 
 	particles->trails_enabled = p_enable;
-	particles->trail_length = p_length;
+	particles->trail_lifetime = p_length;
 
 	_particles_free_data(particles);
 
@@ -758,7 +774,7 @@ void ParticlesStorage::_particles_process(Particles *p_particles, double p_delta
 
 	p_particles->phase = new_phase;
 
-	frame_params.time = RendererCompositorRD::singleton->get_total_time();
+	frame_params.time = RendererCompositorRD::get_singleton()->get_total_time();
 	frame_params.delta = p_delta * p_particles->speed_scale;
 	frame_params.random_seed = p_particles->random_seed;
 	frame_params.explosiveness = p_particles->explosiveness;
@@ -794,6 +810,15 @@ void ParticlesStorage::_particles_process(Particles *p_particles, double p_delta
 			//2D collision
 
 			Transform2D xform = p_particles->sdf_collision_transform; //will use dotproduct manually so invert beforehand
+
+			if (!p_particles->use_local_coords) {
+				Transform2D emission;
+				emission.columns[0] = Vector2(p_particles->emission_transform.basis.get_column(0).x, p_particles->emission_transform.basis.get_column(0).y);
+				emission.columns[1] = Vector2(p_particles->emission_transform.basis.get_column(1).x, p_particles->emission_transform.basis.get_column(1).y);
+				emission.set_origin(Vector2(p_particles->emission_transform.origin.x, p_particles->emission_transform.origin.y));
+				xform = xform * emission.affine_inverse();
+			}
+
 			Transform2D revert = xform.affine_inverse();
 			frame_params.collider_count = 1;
 			frame_params.colliders[0].transform[0] = xform.columns[0][0];
@@ -826,9 +851,9 @@ void ParticlesStorage::_particles_process(Particles *p_particles, double p_delta
 			collision_heightmap_texture = p_particles->sdf_collision_texture;
 
 			//replace in all other history frames where used because parameters are no longer valid if screen moves
-			for (uint32_t i = 1; i < p_particles->frame_history.size(); i++) {
-				if (p_particles->frame_history[i].collider_count > 0 && p_particles->frame_history[i].colliders[0].type == ParticlesFrameParams::COLLISION_TYPE_2D_SDF) {
-					p_particles->frame_history[i].colliders[0] = frame_params.colliders[0];
+			for (ParticlesFrameParams &params : p_particles->frame_history) {
+				if (params.collider_count > 0 && params.colliders[0].type == ParticlesFrameParams::COLLISION_TYPE_2D_SDF) {
+					params.colliders[0] = frame_params.colliders[0];
 				}
 			}
 		}
@@ -987,14 +1012,13 @@ void ParticlesStorage::_particles_process(Particles *p_particles, double p_delta
 				for (uint32_t i = 0; i < ParticlesFrameParams::MAX_3D_TEXTURES; i++) {
 					RID rd_tex;
 					if (i < collision_3d_textures_used) {
-						Texture *t = TextureStorage::get_singleton()->get_texture(collision_3d_textures[i]);
-						if (t && t->type == Texture::TYPE_3D) {
-							rd_tex = t->rd_texture;
+						if (TextureStorage::get_singleton()->texture_get_type(collision_3d_textures[i]) == TextureStorage::TYPE_3D) {
+							rd_tex = TextureStorage::get_singleton()->texture_get_rd_texture(collision_3d_textures[i]);
 						}
 					}
 
 					if (rd_tex == RID()) {
-						rd_tex = texture_storage->texture_rd_get_default(DEFAULT_RD_TEXTURE_3D_WHITE);
+						rd_tex = texture_storage->texture_rd_get_default(TextureStorage::DEFAULT_RD_TEXTURE_3D_WHITE);
 					}
 					u.append_id(rd_tex);
 				}
@@ -1007,11 +1031,12 @@ void ParticlesStorage::_particles_process(Particles *p_particles, double p_delta
 				if (collision_heightmap_texture.is_valid()) {
 					u.append_id(collision_heightmap_texture);
 				} else {
-					u.append_id(texture_storage->texture_rd_get_default(DEFAULT_RD_TEXTURE_BLACK));
+					u.append_id(texture_storage->texture_rd_get_default(TextureStorage::DEFAULT_RD_TEXTURE_BLACK));
 				}
 				uniforms.push_back(u);
 			}
 			p_particles->collision_textures_uniform_set = RD::get_singleton()->uniform_set_create(uniforms, particles_shader.default_shader_rd, 2);
+			p_particles->collision_heightmap_texture = collision_heightmap_texture;
 		}
 	}
 
@@ -1073,9 +1098,9 @@ void ParticlesStorage::_particles_process(Particles *p_particles, double p_delta
 
 	RD::get_singleton()->buffer_update(p_particles->frame_params_buffer, 0, sizeof(ParticlesFrameParams) * p_particles->trail_params.size(), p_particles->trail_params.ptr());
 
-	ParticlesMaterialData *m = static_cast<ParticlesMaterialData *>(material_storage->material_get_data(p_particles->process_material, SHADER_TYPE_PARTICLES));
+	ParticleProcessMaterialData *m = static_cast<ParticleProcessMaterialData *>(material_storage->material_get_data(p_particles->process_material, MaterialStorage::SHADER_TYPE_PARTICLES));
 	if (!m) {
-		m = static_cast<ParticlesMaterialData *>(material_storage->material_get_data(particles_shader.default_material, SHADER_TYPE_PARTICLES));
+		m = static_cast<ParticleProcessMaterialData *>(material_storage->material_get_data(particles_shader.default_material, MaterialStorage::SHADER_TYPE_PARTICLES));
 	}
 
 	ERR_FAIL_COND(!m);
@@ -1091,6 +1116,7 @@ void ParticlesStorage::_particles_process(Particles *p_particles, double p_delta
 
 	if (m->uniform_set.is_valid() && RD::get_singleton()->uniform_set_is_valid(m->uniform_set)) {
 		RD::get_singleton()->compute_list_bind_uniform_set(compute_list, m->uniform_set, 3);
+		m->set_as_used();
 	}
 
 	RD::get_singleton()->compute_list_set_push_constant(compute_list, &push_constant, sizeof(ParticlesShader::PushConstant));
@@ -1119,7 +1145,7 @@ void ParticlesStorage::particles_set_view_axis(RID p_particles, const Vector3 &p
 		return;
 	}
 
-	if (particles->particle_buffer.is_null()) {
+	if (particles->particle_buffer.is_null() || particles->trail_bind_pose_uniform_set.is_null()) {
 		return; //particles have not processed yet
 	}
 
@@ -1202,10 +1228,12 @@ void ParticlesStorage::particles_set_view_axis(RID p_particles, const Vector3 &p
 		RD::get_singleton()->compute_list_dispatch_threads(compute_list, particles->amount, 1, 1);
 
 		RD::get_singleton()->compute_list_end();
-		RendererCompositorRD::singleton->get_effects()->sort_buffer(particles->particles_sort_uniform_set, particles->amount);
+		RendererCompositorRD::get_singleton()->get_effects()->sort_buffer(particles->particles_sort_uniform_set, particles->amount);
 	}
 
-	copy_push_constant.total_particles *= copy_push_constant.total_particles;
+	if (particles->trails_enabled && particles->trail_bind_poses.size() > 1) {
+		copy_push_constant.total_particles *= particles->trail_bind_poses.size();
+	}
 
 	RD::ComputeListID compute_list = RD::get_singleton()->compute_list_begin();
 	uint32_t copy_pipeline = do_sort ? ParticlesShader::COPY_MODE_FILL_INSTANCES_WITH_SORT_BUFFER : ParticlesShader::COPY_MODE_FILL_INSTANCES;
@@ -1228,10 +1256,10 @@ void ParticlesStorage::particles_set_view_axis(RID p_particles, const Vector3 &p
 void ParticlesStorage::_particles_update_buffers(Particles *particles) {
 	uint32_t userdata_count = 0;
 
-	const Material *material = MaterialStorage::get_singleton()->get_material(particles->process_material);
-	if (material && material->shader && material->shader->data) {
-		const ParticlesShaderData *shader_data = static_cast<const ParticlesShaderData *>(material->shader->data);
-		userdata_count = shader_data->userdata_count;
+	MaterialStorage::ShaderData *shader_data = MaterialStorage::get_singleton()->material_get_shader_data(particles->process_material);
+	if (shader_data) {
+		const ParticlesShaderData *particle_shader_data = static_cast<const ParticlesShaderData *>(shader_data);
+		userdata_count = particle_shader_data->userdata_count;
 	}
 
 	if (userdata_count != particles->userdata_count) {
@@ -1313,17 +1341,14 @@ void ParticlesStorage::update_particles() {
 			particles->inactive = false;
 			particles->inactive_time = 0;
 		} else {
-			particles->inactive_time += particles->speed_scale * RendererCompositorRD::singleton->get_frame_delta_time();
+			particles->inactive_time += particles->speed_scale * RendererCompositorRD::get_singleton()->get_frame_delta_time();
 			if (particles->inactive_time > particles->lifetime * 1.2) {
 				particles->inactive = true;
 				continue;
 			}
 		}
 
-#ifndef _MSC_VER
-#warning Should use display refresh rate for all this
-#endif
-
+		// TODO: Should use display refresh rate for all this.
 		float screen_hz = 60;
 
 		int fixed_fps = 0;
@@ -1337,7 +1362,7 @@ void ParticlesStorage::update_particles() {
 			int history_size = 1;
 			int trail_steps = 1;
 			if (particles->trails_enabled && particles->trail_bind_poses.size() > 1) {
-				history_size = MAX(1, int(particles->trail_length * fixed_fps));
+				history_size = MAX(1, int(particles->trail_lifetime * fixed_fps));
 				trail_steps = particles->trail_bind_poses.size();
 			}
 
@@ -1417,7 +1442,7 @@ void ParticlesStorage::update_particles() {
 				frame_time = 1.0 / fixed_fps;
 				decr = frame_time;
 			}
-			double delta = RendererCompositorRD::singleton->get_frame_delta_time();
+			double delta = RendererCompositorRD::get_singleton()->get_frame_delta_time();
 			if (delta > 0.1) { //avoid recursive stalls if fps goes below 10
 				delta = 0.1;
 			} else if (delta <= 0.0) { //unlikely but..
@@ -1425,7 +1450,7 @@ void ParticlesStorage::update_particles() {
 			}
 			double todo = particles->frame_remainder + delta;
 
-			while (todo >= frame_time) {
+			while (todo >= frame_time || particles->clear) {
 				_particles_process(particles, frame_time);
 				todo -= decr;
 			}
@@ -1436,12 +1461,14 @@ void ParticlesStorage::update_particles() {
 			if (zero_time_scale) {
 				_particles_process(particles, 0.0);
 			} else {
-				_particles_process(particles, RendererCompositorRD::singleton->get_frame_delta_time());
+				_particles_process(particles, RendererCompositorRD::get_singleton()->get_frame_delta_time());
 			}
 		}
 
-		//copy particles to instance buffer
+		// Ensure that memory is initialized (the code above should ensure that _particles_process is always called at least once upon clearing).
+		DEV_ASSERT(!particles->clear);
 
+		// Copy particles to instance buffer.
 		if (particles->draw_order != RS::PARTICLES_DRAW_ORDER_VIEW_DEPTH && particles->transform_align != RS::PARTICLES_TRANSFORM_ALIGN_Z_BILLBOARD && particles->transform_align != RS::PARTICLES_TRANSFORM_ALIGN_Z_BILLBOARD_Y_TO_VELOCITY) {
 			//does not need view dependent operation, do copy here
 			ParticlesShader::CopyPushConstant copy_push_constant;
@@ -1501,6 +1528,13 @@ void ParticlesStorage::update_particles() {
 
 		particles->dependency.changed_notify(Dependency::DEPENDENCY_CHANGED_AABB);
 	}
+}
+
+Dependency *ParticlesStorage::particles_get_dependency(RID p_particles) const {
+	Particles *particles = particles_owner.get_or_null(p_particles);
+	ERR_FAIL_NULL_V(particles, nullptr);
+
+	return &particles->dependency;
 }
 
 bool ParticlesStorage::particles_is_inactive(RID p_particles) const {
@@ -1577,83 +1611,12 @@ void ParticlesStorage::ParticlesShaderData::set_code(const String &p_code) {
 	valid = true;
 }
 
-void ParticlesStorage::ParticlesShaderData::set_default_texture_param(const StringName &p_name, RID p_texture, int p_index) {
-	if (!p_texture.is_valid()) {
-		if (default_texture_params.has(p_name) && default_texture_params[p_name].has(p_index)) {
-			default_texture_params[p_name].erase(p_index);
-
-			if (default_texture_params[p_name].is_empty()) {
-				default_texture_params.erase(p_name);
-			}
-		}
-	} else {
-		if (!default_texture_params.has(p_name)) {
-			default_texture_params[p_name] = HashMap<int, RID>();
-		}
-		default_texture_params[p_name][p_index] = p_texture;
-	}
-}
-
-void ParticlesStorage::ParticlesShaderData::get_param_list(List<PropertyInfo> *p_param_list) const {
-	HashMap<int, StringName> order;
-
-	for (const KeyValue<StringName, ShaderLanguage::ShaderNode::Uniform> &E : uniforms) {
-		if (E.value.scope == ShaderLanguage::ShaderNode::Uniform::SCOPE_GLOBAL || E.value.scope == ShaderLanguage::ShaderNode::Uniform::SCOPE_INSTANCE) {
-			continue;
-		}
-
-		if (E.value.texture_order >= 0) {
-			order[E.value.texture_order + 100000] = E.key;
-		} else {
-			order[E.value.order] = E.key;
-		}
-	}
-
-	for (const KeyValue<int, StringName> &E : order) {
-		PropertyInfo pi = ShaderLanguage::uniform_to_property_info(uniforms[E.value]);
-		pi.name = E.value;
-		p_param_list->push_back(pi);
-	}
-}
-
-void ParticlesStorage::ParticlesShaderData::get_instance_param_list(List<RendererMaterialStorage::InstanceShaderParam> *p_param_list) const {
-	for (const KeyValue<StringName, ShaderLanguage::ShaderNode::Uniform> &E : uniforms) {
-		if (E.value.scope != ShaderLanguage::ShaderNode::Uniform::SCOPE_INSTANCE) {
-			continue;
-		}
-
-		RendererMaterialStorage::InstanceShaderParam p;
-		p.info = ShaderLanguage::uniform_to_property_info(E.value);
-		p.info.name = E.key; //supply name
-		p.index = E.value.instance_index;
-		p.default_value = ShaderLanguage::constant_value_to_variant(E.value.default_value, E.value.type, E.value.array_size, E.value.hint);
-		p_param_list->push_back(p);
-	}
-}
-
-bool ParticlesStorage::ParticlesShaderData::is_param_texture(const StringName &p_param) const {
-	if (!uniforms.has(p_param)) {
-		return false;
-	}
-
-	return uniforms[p_param].texture_order >= 0;
-}
-
 bool ParticlesStorage::ParticlesShaderData::is_animated() const {
 	return false;
 }
 
 bool ParticlesStorage::ParticlesShaderData::casts_shadows() const {
 	return false;
-}
-
-Variant ParticlesStorage::ParticlesShaderData::get_default_parameter(const StringName &p_parameter) const {
-	if (uniforms.has(p_parameter)) {
-		ShaderLanguage::ShaderNode::Uniform uniform = uniforms[p_parameter];
-		Vector<ShaderLanguage::ConstantNode::Value> default_value = uniform.default_value;
-		return ShaderLanguage::constant_value_to_variant(default_value, uniform.type, uniform.array_size, uniform.hint);
-	}
-	return Variant();
 }
 
 RS::ShaderNativeSourceCode ParticlesStorage::ParticlesShaderData::get_native_source_code() const {
@@ -1667,21 +1630,21 @@ ParticlesStorage::ParticlesShaderData::~ParticlesShaderData() {
 	}
 }
 
-ShaderData *ParticlesStorage::_create_particles_shader_func() {
+MaterialStorage::ShaderData *ParticlesStorage::_create_particles_shader_func() {
 	ParticlesShaderData *shader_data = memnew(ParticlesShaderData);
 	return shader_data;
 }
 
-bool ParticlesStorage::ParticlesMaterialData::update_parameters(const HashMap<StringName, Variant> &p_parameters, bool p_uniform_dirty, bool p_textures_dirty) {
-	return update_parameters_uniform_set(p_parameters, p_uniform_dirty, p_textures_dirty, shader_data->uniforms, shader_data->ubo_offsets.ptr(), shader_data->texture_uniforms, shader_data->default_texture_params, shader_data->ubo_size, uniform_set, ParticlesStorage::get_singleton()->particles_shader.shader.version_get_shader(shader_data->version, 0), 3);
+bool ParticlesStorage::ParticleProcessMaterialData::update_parameters(const HashMap<StringName, Variant> &p_parameters, bool p_uniform_dirty, bool p_textures_dirty) {
+	return update_parameters_uniform_set(p_parameters, p_uniform_dirty, p_textures_dirty, shader_data->uniforms, shader_data->ubo_offsets.ptr(), shader_data->texture_uniforms, shader_data->default_texture_params, shader_data->ubo_size, uniform_set, ParticlesStorage::get_singleton()->particles_shader.shader.version_get_shader(shader_data->version, 0), 3, true);
 }
 
-ParticlesStorage::ParticlesMaterialData::~ParticlesMaterialData() {
+ParticlesStorage::ParticleProcessMaterialData::~ParticleProcessMaterialData() {
 	free_parameters_uniform_set(uniform_set);
 }
 
-MaterialData *ParticlesStorage::_create_particles_material_func(ParticlesShaderData *p_shader) {
-	ParticlesMaterialData *material_data = memnew(ParticlesMaterialData);
+MaterialStorage::MaterialData *ParticlesStorage::_create_particles_material_func(ParticlesShaderData *p_shader) {
+	ParticleProcessMaterialData *material_data = memnew(ParticleProcessMaterialData);
 	material_data->shader_data = p_shader;
 	//update will happen later anyway so do nothing.
 	return material_data;
@@ -1850,8 +1813,6 @@ AABB ParticlesStorage::particles_collision_get_aabb(RID p_particles_collision) c
 			return aabb;
 		}
 	}
-
-	return AABB();
 }
 
 Vector3 ParticlesStorage::particles_collision_get_extents(RID p_particles_collision) const {
@@ -1865,6 +1826,15 @@ bool ParticlesStorage::particles_collision_is_heightfield(RID p_particles_collis
 	ERR_FAIL_COND_V(!particles_collision, false);
 	return particles_collision->type == RS::PARTICLES_COLLISION_TYPE_HEIGHTFIELD_COLLIDE;
 }
+
+Dependency *ParticlesStorage::particles_collision_get_dependency(RID p_particles_collision) const {
+	ParticlesCollision *pc = particles_collision_owner.get_or_null(p_particles_collision);
+	ERR_FAIL_NULL_V(pc, nullptr);
+
+	return &pc->dependency;
+}
+
+/* Particles collision instance */
 
 RID ParticlesStorage::particles_collision_instance_create(RID p_collision) {
 	ParticlesCollisionInstance pci;

@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  editor_audio_buses.cpp                                               */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  editor_audio_buses.cpp                                                */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "editor_audio_buses.h"
 
@@ -37,7 +37,10 @@
 #include "editor/editor_file_dialog.h"
 #include "editor/editor_node.h"
 #include "editor/editor_scale.h"
+#include "editor/editor_settings.h"
+#include "editor/editor_undo_redo_manager.h"
 #include "filesystem_dock.h"
+#include "scene/gui/separator.h"
 #include "scene/resources/font.h"
 #include "servers/audio_server.h"
 
@@ -180,7 +183,7 @@ void EditorAudioBus::_notification(int p_what) {
 		case NOTIFICATION_DRAG_END: {
 			if (hovering_drop) {
 				hovering_drop = false;
-				update();
+				queue_redraw();
 			}
 		} break;
 	}
@@ -279,7 +282,7 @@ void EditorAudioBus::_name_changed(const String &p_new_name) {
 	}
 	updating_bus = true;
 
-	UndoRedo *ur = EditorNode::get_undo_redo();
+	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 
 	StringName current = AudioServer::get_singleton()->get_bus_name(get_index());
 	ur->create_action(TTR("Rename Audio Bus"));
@@ -320,7 +323,7 @@ void EditorAudioBus::_volume_changed(float p_normalized) {
 		slider->set_value(_scaled_db_to_normalized_volume(Math::round(p_db)));
 	}
 
-	UndoRedo *ur = EditorNode::get_undo_redo();
+	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 	ur->create_action(TTR("Change Audio Bus Volume"), UndoRedo::MERGE_ENDS);
 	ur->add_do_method(AudioServer::get_singleton(), "set_bus_volume_db", get_index(), p_db);
 	ur->add_undo_method(AudioServer::get_singleton(), "set_bus_volume_db", get_index(), AudioServer::get_singleton()->get_bus_volume_db(get_index()));
@@ -336,7 +339,7 @@ float EditorAudioBus::_normalized_volume_to_scaled_db(float normalized) {
 	 * values to relative decibal values.
 	 * One formula is an exponential graph which intends to counteract
 	 * the logarithmic nature of human hearing. This is an approximation
-	 * of the behaviour of a 'logarithmic potentiometer' found on most
+	 * of the behavior of a 'logarithmic potentiometer' found on most
 	 * musical instruments and also emulated in popular software.
 	 * The other two equations are hand-tuned linear tapers that intend to
 	 * try to ease the exponential equation in areas where it makes sense.*/
@@ -393,7 +396,7 @@ void EditorAudioBus::_show_value(float slider_value) {
 
 	// Also set the preview text as a standard Control tooltip.
 	// This way, it can be seen when the slider is merely hovered (instead of dragged).
-	slider->set_tooltip(text);
+	slider->set_tooltip_text(text);
 	audio_value_preview_label->set_text(text);
 	const Vector2 slider_size = slider->get_size();
 	const Vector2 slider_position = slider->get_global_position();
@@ -414,7 +417,7 @@ void EditorAudioBus::_hide_value_preview() {
 void EditorAudioBus::_solo_toggled() {
 	updating_bus = true;
 
-	UndoRedo *ur = EditorNode::get_undo_redo();
+	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 	ur->create_action(TTR("Toggle Audio Bus Solo"));
 	ur->add_do_method(AudioServer::get_singleton(), "set_bus_solo", get_index(), solo->is_pressed());
 	ur->add_undo_method(AudioServer::get_singleton(), "set_bus_solo", get_index(), AudioServer::get_singleton()->is_bus_solo(get_index()));
@@ -428,7 +431,7 @@ void EditorAudioBus::_solo_toggled() {
 void EditorAudioBus::_mute_toggled() {
 	updating_bus = true;
 
-	UndoRedo *ur = EditorNode::get_undo_redo();
+	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 	ur->create_action(TTR("Toggle Audio Bus Mute"));
 	ur->add_do_method(AudioServer::get_singleton(), "set_bus_mute", get_index(), mute->is_pressed());
 	ur->add_undo_method(AudioServer::get_singleton(), "set_bus_mute", get_index(), AudioServer::get_singleton()->is_bus_mute(get_index()));
@@ -442,7 +445,7 @@ void EditorAudioBus::_mute_toggled() {
 void EditorAudioBus::_bypass_toggled() {
 	updating_bus = true;
 
-	UndoRedo *ur = EditorNode::get_undo_redo();
+	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 	ur->create_action(TTR("Toggle Audio Bus Bypass Effects"));
 	ur->add_do_method(AudioServer::get_singleton(), "set_bus_bypass_effects", get_index(), bypass->is_pressed());
 	ur->add_undo_method(AudioServer::get_singleton(), "set_bus_bypass_effects", get_index(), AudioServer::get_singleton()->is_bus_bypassing_effects(get_index()));
@@ -456,7 +459,7 @@ void EditorAudioBus::_bypass_toggled() {
 void EditorAudioBus::_send_selected(int p_which) {
 	updating_bus = true;
 
-	UndoRedo *ur = EditorNode::get_undo_redo();
+	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 	ur->create_action(TTR("Select Audio Bus Send"));
 	ur->add_do_method(AudioServer::get_singleton(), "set_bus_send", get_index(), send->get_item_text(p_which));
 	ur->add_undo_method(AudioServer::get_singleton(), "set_bus_send", get_index(), AudioServer::get_singleton()->get_bus_send(get_index()));
@@ -506,7 +509,7 @@ void EditorAudioBus::_effect_edited() {
 		int index = effect->get_metadata(0);
 		updating_bus = true;
 
-		UndoRedo *ur = EditorNode::get_undo_redo();
+		EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 		ur->create_action(TTR("Select Audio Bus Send"));
 		ur->add_do_method(AudioServer::get_singleton(), "set_bus_effect_enabled", get_index(), index, effect->is_checked(0));
 		ur->add_undo_method(AudioServer::get_singleton(), "set_bus_effect_enabled", get_index(), index, AudioServer::get_singleton()->is_bus_effect_enabled(get_index(), index));
@@ -533,7 +536,7 @@ void EditorAudioBus::_effect_add(int p_which) {
 
 	afxr->set_name(effect_options->get_item_text(p_which));
 
-	UndoRedo *ur = EditorNode::get_undo_redo();
+	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 	ur->create_action(TTR("Add Audio Bus Effect"));
 	ur->add_do_method(AudioServer::get_singleton(), "add_bus_effect", get_index(), afxr, -1);
 	ur->add_undo_method(AudioServer::get_singleton(), "remove_bus_effect", get_index(), AudioServer::get_singleton()->get_bus_effect_count(get_index()));
@@ -687,7 +690,7 @@ void EditorAudioBus::drop_data_fw(const Point2 &p_point, const Variant &p_data, 
 
 	bool enabled = AudioServer::get_singleton()->is_bus_effect_enabled(bus, effect);
 
-	UndoRedo *ur = EditorNode::get_undo_redo();
+	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 	ur->create_action(TTR("Move Bus Effect"));
 	ur->add_do_method(AudioServer::get_singleton(), "remove_bus_effect", bus, effect);
 	ur->add_do_method(AudioServer::get_singleton(), "add_bus_effect", get_index(), AudioServer::get_singleton()->get_bus_effect(bus, effect), paste_at);
@@ -729,7 +732,7 @@ void EditorAudioBus::_delete_effect_pressed(int p_option) {
 
 	int index = item->get_metadata(0);
 
-	UndoRedo *ur = EditorNode::get_undo_redo();
+	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 	ur->create_action(TTR("Delete Bus Effect"));
 	ur->add_do_method(AudioServer::get_singleton(), "remove_bus_effect", get_index(), index);
 	ur->add_undo_method(AudioServer::get_singleton(), "add_bus_effect", get_index(), AudioServer::get_singleton()->get_bus_effect(get_index(), index), index);
@@ -762,10 +765,6 @@ void EditorAudioBus::_bind_methods() {
 	ClassDB::bind_method("update_bus", &EditorAudioBus::update_bus);
 	ClassDB::bind_method("update_send", &EditorAudioBus::update_send);
 
-	ClassDB::bind_method("_get_drag_data_fw", &EditorAudioBus::get_drag_data_fw);
-	ClassDB::bind_method("_can_drop_data_fw", &EditorAudioBus::can_drop_data_fw);
-	ClassDB::bind_method("_drop_data_fw", &EditorAudioBus::drop_data_fw);
-
 	ADD_SIGNAL(MethodInfo("duplicate_request"));
 	ADD_SIGNAL(MethodInfo("delete_request"));
 	ADD_SIGNAL(MethodInfo("vol_reset_request"));
@@ -777,7 +776,7 @@ EditorAudioBus::EditorAudioBus(EditorAudioBuses *p_buses, bool p_is_master) {
 	buses = p_buses;
 	is_master = p_is_master;
 
-	set_tooltip(TTR("Drag & drop to rearrange."));
+	set_tooltip_text(TTR("Drag & drop to rearrange."));
 
 	VBoxContainer *vb = memnew(VBoxContainer);
 	add_child(vb);
@@ -794,21 +793,21 @@ EditorAudioBus::EditorAudioBus(EditorAudioBuses *p_buses, bool p_is_master) {
 	solo = memnew(Button);
 	solo->set_flat(true);
 	solo->set_toggle_mode(true);
-	solo->set_tooltip(TTR("Solo"));
+	solo->set_tooltip_text(TTR("Solo"));
 	solo->set_focus_mode(FOCUS_NONE);
 	solo->connect("pressed", callable_mp(this, &EditorAudioBus::_solo_toggled));
 	hbc->add_child(solo);
 	mute = memnew(Button);
 	mute->set_flat(true);
 	mute->set_toggle_mode(true);
-	mute->set_tooltip(TTR("Mute"));
+	mute->set_tooltip_text(TTR("Mute"));
 	mute->set_focus_mode(FOCUS_NONE);
 	mute->connect("pressed", callable_mp(this, &EditorAudioBus::_mute_toggled));
 	hbc->add_child(mute);
 	bypass = memnew(Button);
 	bypass->set_flat(true);
 	bypass->set_toggle_mode(true);
-	bypass->set_tooltip(TTR("Bypass"));
+	bypass->set_tooltip_text(TTR("Bypass"));
 	bypass->set_focus_mode(FOCUS_NONE);
 	bypass->connect("pressed", callable_mp(this, &EditorAudioBus::_bypass_toggled));
 	hbc->add_child(bypass);
@@ -900,7 +899,7 @@ EditorAudioBus::EditorAudioBus(EditorAudioBuses *p_buses, bool p_is_master) {
 	effects->connect("item_edited", callable_mp(this, &EditorAudioBus::_effect_edited));
 	effects->connect("cell_selected", callable_mp(this, &EditorAudioBus::_effect_selected));
 	effects->set_edit_checkbox_cell_only_when_checkbox_is_pressed(true);
-	effects->set_drag_forwarding(this);
+	SET_DRAG_FORWARDING_GCD(effects, EditorAudioBus);
 	effects->connect("item_mouse_selected", callable_mp(this, &EditorAudioBus::_effect_rmb));
 	effects->set_allow_rmb_select(true);
 	effects->set_focus_mode(FOCUS_CLICK);
@@ -917,10 +916,10 @@ EditorAudioBus::EditorAudioBus(EditorAudioBuses *p_buses, bool p_is_master) {
 	effect_options = memnew(PopupMenu);
 	effect_options->connect("index_pressed", callable_mp(this, &EditorAudioBus::_effect_add));
 	add_child(effect_options);
-	List<StringName> effects;
-	ClassDB::get_inheriters_from_class("AudioEffect", &effects);
-	effects.sort_custom<StringName::AlphCompare>();
-	for (const StringName &E : effects) {
+	List<StringName> effect_list;
+	ClassDB::get_inheriters_from_class("AudioEffect", &effect_list);
+	effect_list.sort_custom<StringName::AlphCompare>();
+	for (const StringName &E : effect_list) {
 		if (!ClassDB::can_instantiate(E) || ClassDB::is_virtual(E)) {
 			continue;
 		}
@@ -934,11 +933,11 @@ EditorAudioBus::EditorAudioBus(EditorAudioBuses *p_buses, bool p_is_master) {
 	bus_options->set_shortcut_context(this);
 	bus_options->set_h_size_flags(SIZE_SHRINK_END);
 	bus_options->set_anchor(SIDE_RIGHT, 0.0);
-	bus_options->set_tooltip(TTR("Bus Options"));
+	bus_options->set_tooltip_text(TTR("Bus Options"));
 	hbc->add_child(bus_options);
 
 	bus_popup = bus_options->get_popup();
-	bus_popup->add_shortcut(ED_SHORTCUT("audio_bus_editor/duplicate_selected_bus", TTR("Duplicate Bus"), KeyModifierMask::CMD | Key::D));
+	bus_popup->add_shortcut(ED_SHORTCUT("audio_bus_editor/duplicate_selected_bus", TTR("Duplicate Bus"), KeyModifierMask::CMD_OR_CTRL | Key::D));
 	bus_popup->add_shortcut(ED_SHORTCUT("audio_bus_editor/delete_selected_bus", TTR("Delete Bus"), Key::KEY_DELETE));
 	bus_popup->set_item_disabled(1, is_master);
 	bus_popup->add_item(TTR("Reset Volume"));
@@ -965,7 +964,7 @@ void EditorAudioBusDrop::_notification(int p_what) {
 		case NOTIFICATION_MOUSE_ENTER: {
 			if (!hovering_drop) {
 				hovering_drop = true;
-				update();
+				queue_redraw();
 			}
 		} break;
 
@@ -973,7 +972,7 @@ void EditorAudioBusDrop::_notification(int p_what) {
 		case NOTIFICATION_DRAG_END: {
 			if (hovering_drop) {
 				hovering_drop = false;
-				update();
+				queue_redraw();
 			}
 		} break;
 	}
@@ -1007,11 +1006,11 @@ void EditorAudioBuses::_update_buses() {
 		bool is_master = (i == 0);
 		EditorAudioBus *audio_bus = memnew(EditorAudioBus(this, is_master));
 		bus_hb->add_child(audio_bus);
-		audio_bus->connect("delete_request", callable_mp(this, &EditorAudioBuses::_delete_bus), varray(audio_bus), CONNECT_DEFERRED);
-		audio_bus->connect("duplicate_request", callable_mp(this, &EditorAudioBuses::_duplicate_bus), varray(), CONNECT_DEFERRED);
-		audio_bus->connect("vol_reset_request", callable_mp(this, &EditorAudioBuses::_reset_bus_volume), varray(audio_bus), CONNECT_DEFERRED);
+		audio_bus->connect("delete_request", callable_mp(this, &EditorAudioBuses::_delete_bus).bind(audio_bus), CONNECT_DEFERRED);
+		audio_bus->connect("duplicate_request", callable_mp(this, &EditorAudioBuses::_duplicate_bus), CONNECT_DEFERRED);
+		audio_bus->connect("vol_reset_request", callable_mp(this, &EditorAudioBuses::_reset_bus_volume).bind(audio_bus), CONNECT_DEFERRED);
 		audio_bus->connect("drop_end_request", callable_mp(this, &EditorAudioBuses::_request_drop_end));
-		audio_bus->connect("dropped", callable_mp(this, &EditorAudioBuses::_drop_at_index), varray(), CONNECT_DEFERRED);
+		audio_bus->connect("dropped", callable_mp(this, &EditorAudioBuses::_drop_at_index), CONNECT_DEFERRED);
 	}
 }
 
@@ -1025,7 +1024,7 @@ void EditorAudioBuses::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_ENTER_TREE:
 		case NOTIFICATION_THEME_CHANGED: {
-			bus_scroll->add_theme_style_override("bg", get_theme_stylebox(SNAME("bg"), SNAME("Tree")));
+			bus_scroll->add_theme_style_override("panel", get_theme_stylebox(SNAME("panel"), SNAME("Tree")));
 		} break;
 
 		case NOTIFICATION_READY: {
@@ -1034,7 +1033,7 @@ void EditorAudioBuses::_notification(int p_what) {
 
 		case NOTIFICATION_DRAG_END: {
 			if (drop_end) {
-				drop_end->queue_delete();
+				drop_end->queue_free();
 				drop_end = nullptr;
 			}
 		} break;
@@ -1062,7 +1061,7 @@ void EditorAudioBuses::_notification(int p_what) {
 }
 
 void EditorAudioBuses::_add_bus() {
-	UndoRedo *ur = EditorNode::get_undo_redo();
+	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 
 	ur->create_action(TTR("Add Audio Bus"));
 	ur->add_do_method(AudioServer::get_singleton(), "set_bus_count", AudioServer::get_singleton()->get_bus_count() + 1);
@@ -1094,7 +1093,7 @@ void EditorAudioBuses::_delete_bus(Object *p_which) {
 		return;
 	}
 
-	UndoRedo *ur = EditorNode::get_undo_redo();
+	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 
 	ur->create_action(TTR("Delete Audio Bus"));
 	ur->add_do_method(AudioServer::get_singleton(), "remove_bus", index);
@@ -1116,7 +1115,7 @@ void EditorAudioBuses::_delete_bus(Object *p_which) {
 
 void EditorAudioBuses::_duplicate_bus(int p_which) {
 	int add_at_pos = p_which + 1;
-	UndoRedo *ur = EditorNode::get_undo_redo();
+	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 	ur->create_action(TTR("Duplicate Audio Bus"));
 	ur->add_do_method(AudioServer::get_singleton(), "add_bus", add_at_pos);
 	ur->add_do_method(AudioServer::get_singleton(), "set_bus_name", add_at_pos, AudioServer::get_singleton()->get_bus_name(p_which) + " Copy");
@@ -1139,7 +1138,7 @@ void EditorAudioBuses::_reset_bus_volume(Object *p_which) {
 	EditorAudioBus *bus = Object::cast_to<EditorAudioBus>(p_which);
 	int index = bus->get_index();
 
-	UndoRedo *ur = EditorNode::get_undo_redo();
+	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 	ur->create_action(TTR("Reset Bus Volume"));
 	ur->add_do_method(AudioServer::get_singleton(), "set_bus_volume_db", index, 0.f);
 	ur->add_undo_method(AudioServer::get_singleton(), "set_bus_volume_db", index, AudioServer::get_singleton()->get_bus_volume_db(index));
@@ -1154,12 +1153,12 @@ void EditorAudioBuses::_request_drop_end() {
 
 		bus_hb->add_child(drop_end);
 		drop_end->set_custom_minimum_size(Object::cast_to<Control>(bus_hb->get_child(0))->get_size());
-		drop_end->connect("dropped", callable_mp(this, &EditorAudioBuses::_drop_at_index), varray(), CONNECT_DEFERRED);
+		drop_end->connect("dropped", callable_mp(this, &EditorAudioBuses::_drop_at_index), CONNECT_DEFERRED);
 	}
 }
 
 void EditorAudioBuses::_drop_at_index(int p_bus, int p_index) {
-	UndoRedo *ur = EditorNode::get_undo_redo();
+	EditorUndoRedoManager *ur = EditorUndoRedoManager::get_singleton();
 	ur->create_action(TTR("Move Audio Bus"));
 
 	ur->add_do_method(AudioServer::get_singleton(), "move_bus", p_bus, p_index);
@@ -1174,7 +1173,7 @@ void EditorAudioBuses::_drop_at_index(int p_bus, int p_index) {
 
 void EditorAudioBuses::_server_save() {
 	Ref<AudioBusLayout> state = AudioServer::get_singleton()->generate_bus_layout();
-	ResourceSaver::save(edited_path, state);
+	ResourceSaver::save(state, edited_path);
 }
 
 void EditorAudioBuses::_select_layout() {
@@ -1206,7 +1205,7 @@ void EditorAudioBuses::_load_layout() {
 }
 
 void EditorAudioBuses::_load_default_layout() {
-	String layout_path = ProjectSettings::get_singleton()->get("audio/buses/default_bus_layout");
+	String layout_path = GLOBAL_GET("audio/buses/default_bus_layout");
 
 	Ref<AudioBusLayout> state = ResourceLoader::load(layout_path, "", ResourceFormatLoader::CACHE_MODE_IGNORE);
 	if (state.is_null()) {
@@ -1218,7 +1217,7 @@ void EditorAudioBuses::_load_default_layout() {
 	file->set_text(String(TTR("Layout:")) + " " + layout_path.get_file());
 	AudioServer::get_singleton()->set_bus_layout(state);
 	_update_buses();
-	EditorNode::get_singleton()->get_undo_redo()->clear_history();
+	EditorUndoRedoManager::get_singleton()->clear_history(true, EditorUndoRedoManager::GLOBAL_HISTORY);
 	call_deferred(SNAME("_select_layout"));
 }
 
@@ -1234,7 +1233,7 @@ void EditorAudioBuses::_file_dialog_callback(const String &p_string) {
 		file->set_text(String(TTR("Layout:")) + " " + p_string.get_file());
 		AudioServer::get_singleton()->set_bus_layout(state);
 		_update_buses();
-		EditorNode::get_singleton()->get_undo_redo()->clear_history();
+		EditorUndoRedoManager::get_singleton()->clear_history(true, EditorUndoRedoManager::GLOBAL_HISTORY);
 		call_deferred(SNAME("_select_layout"));
 
 	} else if (file_dialog->get_file_mode() == EditorFileDialog::FILE_MODE_SAVE_FILE) {
@@ -1244,7 +1243,7 @@ void EditorAudioBuses::_file_dialog_callback(const String &p_string) {
 			AudioServer::get_singleton()->set_bus_layout(empty_state);
 		}
 
-		Error err = ResourceSaver::save(p_string, AudioServer::get_singleton()->generate_bus_layout());
+		Error err = ResourceSaver::save(AudioServer::get_singleton()->generate_bus_layout(), p_string);
 
 		if (err != OK) {
 			EditorNode::get_singleton()->show_warning(vformat(TTR("Error saving file: %s"), p_string));
@@ -1254,7 +1253,7 @@ void EditorAudioBuses::_file_dialog_callback(const String &p_string) {
 		edited_path = p_string;
 		file->set_text(String(TTR("Layout:")) + " " + p_string.get_file());
 		_update_buses();
-		EditorNode::get_singleton()->get_undo_redo()->clear_history();
+		EditorUndoRedoManager::get_singleton()->clear_history(true, EditorUndoRedoManager::GLOBAL_HISTORY);
 		call_deferred(SNAME("_select_layout"));
 	}
 }
@@ -1271,7 +1270,7 @@ EditorAudioBuses::EditorAudioBuses() {
 	add_child(top_hb);
 
 	file = memnew(Label);
-	String layout_path = ProjectSettings::get_singleton()->get("audio/buses/default_bus_layout");
+	String layout_path = GLOBAL_GET("audio/buses/default_bus_layout");
 	file->set_text(String(TTR("Layout:")) + " " + layout_path.get_file());
 	file->set_clip_text(true);
 	file->set_h_size_flags(SIZE_EXPAND_FILL);
@@ -1280,7 +1279,7 @@ EditorAudioBuses::EditorAudioBuses() {
 	add = memnew(Button);
 	top_hb->add_child(add);
 	add->set_text(TTR("Add Bus"));
-	add->set_tooltip(TTR("Add a new Audio Bus to this layout."));
+	add->set_tooltip_text(TTR("Add a new Audio Bus to this layout."));
 	add->connect("pressed", callable_mp(this, &EditorAudioBuses::_add_bus));
 
 	VSeparator *separator = memnew(VSeparator);
@@ -1288,25 +1287,25 @@ EditorAudioBuses::EditorAudioBuses() {
 
 	load = memnew(Button);
 	load->set_text(TTR("Load"));
-	load->set_tooltip(TTR("Load an existing Bus Layout."));
+	load->set_tooltip_text(TTR("Load an existing Bus Layout."));
 	top_hb->add_child(load);
 	load->connect("pressed", callable_mp(this, &EditorAudioBuses::_load_layout));
 
 	save_as = memnew(Button);
 	save_as->set_text(TTR("Save As"));
-	save_as->set_tooltip(TTR("Save this Bus Layout to a file."));
+	save_as->set_tooltip_text(TTR("Save this Bus Layout to a file."));
 	top_hb->add_child(save_as);
 	save_as->connect("pressed", callable_mp(this, &EditorAudioBuses::_save_as_layout));
 
 	_default = memnew(Button);
 	_default->set_text(TTR("Load Default"));
-	_default->set_tooltip(TTR("Load the default Bus Layout."));
+	_default->set_tooltip_text(TTR("Load the default Bus Layout."));
 	top_hb->add_child(_default);
 	_default->connect("pressed", callable_mp(this, &EditorAudioBuses::_load_default_layout));
 
 	_new = memnew(Button);
 	_new->set_text(TTR("Create"));
-	_new->set_tooltip(TTR("Create a new Bus Layout."));
+	_new->set_tooltip_text(TTR("Create a new Bus Layout."));
 	top_hb->add_child(_new);
 	_new->connect("pressed", callable_mp(this, &EditorAudioBuses::_new_layout));
 
@@ -1326,7 +1325,7 @@ EditorAudioBuses::EditorAudioBuses() {
 
 	set_v_size_flags(SIZE_EXPAND_FILL);
 
-	edited_path = ProjectSettings::get_singleton()->get("audio/buses/default_bus_layout");
+	edited_path = GLOBAL_GET("audio/buses/default_bus_layout");
 
 	file_dialog = memnew(EditorFileDialog);
 	List<String> ext;
@@ -1336,6 +1335,8 @@ EditorAudioBuses::EditorAudioBuses() {
 	}
 	add_child(file_dialog);
 	file_dialog->connect("file_selected", callable_mp(this, &EditorAudioBuses::_file_dialog_callback));
+
+	AudioServer::get_singleton()->connect("bus_layout_changed", callable_mp(this, &EditorAudioBuses::_update_buses));
 
 	set_process(true);
 }
@@ -1353,7 +1354,7 @@ void EditorAudioBuses::open_layout(const String &p_path) {
 	file->set_text(p_path.get_file());
 	AudioServer::get_singleton()->set_bus_layout(state);
 	_update_buses();
-	EditorNode::get_singleton()->get_undo_redo()->clear_history();
+	EditorUndoRedoManager::get_singleton()->clear_history(true, EditorUndoRedoManager::GLOBAL_HISTORY);
 	call_deferred(SNAME("_select_layout"));
 }
 

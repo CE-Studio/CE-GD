@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  editor_resource_picker.h                                             */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  editor_resource_picker.h                                              */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef EDITOR_RESOURCE_PICKER_H
 #define EDITOR_RESOURCE_PICKER_H
@@ -42,8 +42,6 @@ class EditorQuickOpen;
 class EditorResourcePicker : public HBoxContainer {
 	GDCLASS(EditorResourcePicker, HBoxContainer);
 
-	static HashMap<StringName, List<StringName>> allowed_types_cache;
-
 	String base_type;
 	Ref<Resource> edited_resource;
 
@@ -58,12 +56,15 @@ class EditorResourcePicker : public HBoxContainer {
 	EditorFileDialog *file_dialog = nullptr;
 	EditorQuickOpen *quick_open = nullptr;
 
+	Size2i assign_button_min_size = Size2i(1, 1);
+
 	enum MenuOption {
 		OBJ_MENU_LOAD,
 		OBJ_MENU_QUICKLOAD,
-		OBJ_MENU_EDIT,
+		OBJ_MENU_INSPECT,
 		OBJ_MENU_CLEAR,
 		OBJ_MENU_MAKE_UNIQUE,
+		OBJ_MENU_MAKE_UNIQUE_RECURSIVE,
 		OBJ_MENU_SAVE,
 		OBJ_MENU_COPY,
 		OBJ_MENU_PASTE,
@@ -75,7 +76,6 @@ class EditorResourcePicker : public HBoxContainer {
 
 	PopupMenu *edit_menu = nullptr;
 
-	void _update_resource();
 	void _update_resource_preview(const String &p_path, const Ref<Texture2D> &p_preview, const Ref<Texture2D> &p_small_preview, ObjectID p_obj);
 
 	void _resource_selected();
@@ -89,9 +89,10 @@ class EditorResourcePicker : public HBoxContainer {
 	void _button_draw();
 	void _button_input(const Ref<InputEvent> &p_event);
 
-	void _get_allowed_types(bool p_with_convert, HashSet<String> *p_vector) const;
+	String _get_resource_type(const Ref<Resource> &p_resource) const;
+	void _get_allowed_types(bool p_with_convert, HashSet<StringName> *p_vector) const;
 	bool _is_drop_valid(const Dictionary &p_drag_data) const;
-	bool _is_type_valid(const String p_type_name, HashSet<String> p_allowed_types) const;
+	bool _is_type_valid(const String p_type_name, HashSet<StringName> p_allowed_types) const;
 
 	Variant get_drag_data_fw(const Point2 &p_point, Control *p_from);
 	bool can_drop_data_fw(const Point2 &p_point, const Variant &p_data, Control *p_from) const;
@@ -100,15 +101,21 @@ class EditorResourcePicker : public HBoxContainer {
 	void _ensure_resource_menu();
 
 protected:
+	virtual void _update_resource();
+
+	Button *get_assign_button() { return assign_button; }
 	static void _bind_methods();
 	void _notification(int p_what);
+
+	void set_assign_button_min_size(const Size2i &p_size) {
+		assign_button_min_size = p_size;
+		assign_button->set_custom_minimum_size(assign_button_min_size);
+	}
 
 	GDVIRTUAL1(_set_create_options, Object *)
 	GDVIRTUAL1R(bool, _handle_menu_selected, int)
 
 public:
-	static void clear_caches();
-
 	void set_base_type(const String &p_base_type);
 	String get_base_type() const;
 	Vector<String> get_allowed_types() const;
@@ -126,7 +133,7 @@ public:
 	virtual void set_create_options(Object *p_menu_node);
 	virtual bool handle_menu_selected(int p_which);
 
-	EditorResourcePicker();
+	EditorResourcePicker(bool p_hide_assign_button_controls = false);
 };
 
 class EditorScriptPicker : public EditorResourcePicker {
@@ -171,6 +178,28 @@ public:
 	void set_preferred_mode(int p_preferred_mode);
 
 	EditorShaderPicker();
+};
+
+class EditorAudioStreamPicker : public EditorResourcePicker {
+	GDCLASS(EditorAudioStreamPicker, EditorResourcePicker);
+
+	uint64_t last_preview_version = 0;
+	Control *stream_preview_rect = nullptr;
+
+	enum {
+		MAX_TAGGED_FRAMES = 8
+	};
+	float tagged_frame_offsets[MAX_TAGGED_FRAMES];
+	uint32_t tagged_frame_offset_count = 0;
+
+	void _preview_draw();
+	virtual void _update_resource() override;
+
+protected:
+	void _notification(int p_what);
+
+public:
+	EditorAudioStreamPicker();
 };
 
 #endif // EDITOR_RESOURCE_PICKER_H

@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  editor_help.cpp                                                      */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  editor_help.cpp                                                       */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "editor_help.h"
 
@@ -39,32 +39,47 @@
 #include "editor/editor_scale.h"
 #include "editor/editor_settings.h"
 #include "editor/plugins/script_editor_plugin.h"
+#include "scene/gui/line_edit.h"
 
-#define CONTRIBUTE_URL vformat("%s/community/contributing/updating_the_class_reference.html", VERSION_DOCS_URL)
+#define CONTRIBUTE_URL vformat("%s/contributing/documentation/updating_the_class_reference.html", VERSION_DOCS_URL)
 
 DocTools *EditorHelp::doc = nullptr;
 
-void EditorHelp::_update_theme() {
-	text_color = get_theme_color(SNAME("text_color"), SNAME("EditorHelp"));
-	title_color = get_theme_color(SNAME("title_color"), SNAME("EditorHelp"));
-	headline_color = get_theme_color(SNAME("headline_color"), SNAME("EditorHelp"));
-	comment_color = get_theme_color(SNAME("comment_color"), SNAME("EditorHelp"));
-	symbol_color = get_theme_color(SNAME("symbol_color"), SNAME("EditorHelp"));
-	value_color = get_theme_color(SNAME("value_color"), SNAME("EditorHelp"));
-	qualifier_color = get_theme_color(SNAME("qualifier_color"), SNAME("EditorHelp"));
-	type_color = get_theme_color(SNAME("type_color"), SNAME("EditorHelp"));
+void EditorHelp::_update_theme_item_cache() {
+	VBoxContainer::_update_theme_item_cache();
+
+	theme_cache.text_color = get_theme_color(SNAME("text_color"), SNAME("EditorHelp"));
+	theme_cache.title_color = get_theme_color(SNAME("title_color"), SNAME("EditorHelp"));
+	theme_cache.headline_color = get_theme_color(SNAME("headline_color"), SNAME("EditorHelp"));
+	theme_cache.comment_color = get_theme_color(SNAME("comment_color"), SNAME("EditorHelp"));
+	theme_cache.symbol_color = get_theme_color(SNAME("symbol_color"), SNAME("EditorHelp"));
+	theme_cache.value_color = get_theme_color(SNAME("value_color"), SNAME("EditorHelp"));
+	theme_cache.qualifier_color = get_theme_color(SNAME("qualifier_color"), SNAME("EditorHelp"));
+	theme_cache.type_color = get_theme_color(SNAME("type_color"), SNAME("EditorHelp"));
+
+	theme_cache.doc_font = get_theme_font(SNAME("doc"), SNAME("EditorFonts"));
+	theme_cache.doc_bold_font = get_theme_font(SNAME("doc_bold"), SNAME("EditorFonts"));
+	theme_cache.doc_italic_font = get_theme_font(SNAME("doc_italic"), SNAME("EditorFonts"));
+	theme_cache.doc_title_font = get_theme_font(SNAME("doc_title"), SNAME("EditorFonts"));
+	theme_cache.doc_code_font = get_theme_font(SNAME("doc_source"), SNAME("EditorFonts"));
+	theme_cache.doc_kbd_font = get_theme_font(SNAME("doc_keyboard"), SNAME("EditorFonts"));
+
+	theme_cache.doc_font_size = get_theme_font_size(SNAME("doc_size"), SNAME("EditorFonts"));
+	theme_cache.doc_title_font_size = get_theme_font_size(SNAME("doc_title_size"), SNAME("EditorFonts"));
+	theme_cache.doc_code_font_size = get_theme_font_size(SNAME("doc_source_size"), SNAME("EditorFonts"));
+	theme_cache.doc_kbd_font_size = get_theme_font_size(SNAME("doc_keyboard_size"), SNAME("EditorFonts"));
+
+	theme_cache.background_style = get_theme_stylebox(SNAME("background"), SNAME("EditorHelp"));
+
+	class_desc->add_theme_font_override("normal_font", theme_cache.doc_font);
+	class_desc->add_theme_font_size_override("normal_font_size", theme_cache.doc_font_size);
 
 	class_desc->add_theme_color_override("selection_color", get_theme_color(SNAME("selection_color"), SNAME("EditorHelp")));
 	class_desc->add_theme_constant_override("line_separation", get_theme_constant(SNAME("line_separation"), SNAME("EditorHelp")));
 	class_desc->add_theme_constant_override("table_h_separation", get_theme_constant(SNAME("table_h_separation"), SNAME("EditorHelp")));
 	class_desc->add_theme_constant_override("table_v_separation", get_theme_constant(SNAME("table_v_separation"), SNAME("EditorHelp")));
-
-	doc_font = get_theme_font(SNAME("doc"), SNAME("EditorFonts"));
-	doc_bold_font = get_theme_font(SNAME("doc_bold"), SNAME("EditorFonts"));
-	doc_title_font = get_theme_font(SNAME("doc_title"), SNAME("EditorFonts"));
-	doc_code_font = get_theme_font(SNAME("doc_source"), SNAME("EditorFonts"));
-
-	doc_title_font_size = get_theme_font_size(SNAME("doc_title_size"), SNAME("EditorFonts"));
+	class_desc->add_theme_constant_override("text_highlight_h_padding", get_theme_constant(SNAME("text_highlight_h_padding"), SNAME("EditorHelp")));
+	class_desc->add_theme_constant_override("text_highlight_v_padding", get_theme_constant(SNAME("text_highlight_v_padding"), SNAME("EditorHelp")));
 }
 
 void EditorHelp::_search(bool p_search_previous) {
@@ -184,28 +199,34 @@ void EditorHelp::_class_desc_input(const Ref<InputEvent> &p_input) {
 void EditorHelp::_class_desc_resized(bool p_force_update_theme) {
 	// Add extra horizontal margins for better readability.
 	// The margins increase as the width of the editor help container increases.
-	Ref<Font> doc_code_font = get_theme_font(SNAME("doc_source"), SNAME("EditorFonts"));
-	int font_size = get_theme_font_size(SNAME("doc_source_size"), SNAME("EditorFonts"));
-	real_t char_width = doc_code_font->get_char_size('x', font_size).width;
+	real_t char_width = theme_cache.doc_code_font->get_char_size('x', theme_cache.doc_code_font_size).width;
 	const int new_display_margin = MAX(30 * EDSCALE, get_parent_anchorable_rect().size.width - char_width * 120 * EDSCALE) * 0.5;
 	if (display_margin != new_display_margin || p_force_update_theme) {
 		display_margin = new_display_margin;
 
-		Ref<StyleBox> class_desc_stylebox = EditorNode::get_singleton()->get_theme_base()->get_theme_stylebox(SNAME("normal"), SNAME("RichTextLabel"))->duplicate();
-		class_desc_stylebox->set_default_margin(SIDE_LEFT, display_margin);
-		class_desc_stylebox->set_default_margin(SIDE_RIGHT, display_margin);
+		Ref<StyleBox> class_desc_stylebox = theme_cache.background_style->duplicate();
+		class_desc_stylebox->set_content_margin(SIDE_LEFT, display_margin);
+		class_desc_stylebox->set_content_margin(SIDE_RIGHT, display_margin);
 		class_desc->add_theme_style_override("normal", class_desc_stylebox);
+		class_desc->add_theme_style_override("focused", class_desc_stylebox);
 	}
 }
 
 void EditorHelp::_add_type(const String &p_type, const String &p_enum) {
-	String t = p_type;
-	if (t.is_empty()) {
-		t = "void";
+	if (p_type.is_empty() || p_type == "void") {
+		class_desc->push_color(Color(theme_cache.type_color, 0.5));
+		class_desc->push_hint(TTR("No return value."));
+		class_desc->add_text("void");
+		class_desc->pop();
+		class_desc->pop();
+		return;
 	}
-	bool can_ref = (t != "void" && !t.contains("*")) || !p_enum.is_empty();
 
-	if (!p_enum.is_empty()) {
+	bool is_enum_type = !p_enum.is_empty();
+	bool can_ref = !p_type.contains("*") || is_enum_type;
+
+	String t = p_type;
+	if (is_enum_type) {
 		if (p_enum.get_slice_count(".") > 1) {
 			t = p_enum.get_slice(".", 1);
 		} else {
@@ -213,30 +234,54 @@ void EditorHelp::_add_type(const String &p_type, const String &p_enum) {
 		}
 	}
 
-	class_desc->push_color(type_color);
+	class_desc->push_color(theme_cache.type_color);
 	bool add_array = false;
 	if (can_ref) {
 		if (t.ends_with("[]")) {
 			add_array = true;
 			t = t.replace("[]", "");
+
+			class_desc->push_meta("#Array"); //class
+			class_desc->add_text("Array");
+			class_desc->pop();
+			class_desc->add_text("[");
 		}
-		if (p_enum.is_empty()) {
-			class_desc->push_meta("#" + t); //class
-		} else {
+
+		if (is_enum_type) {
 			class_desc->push_meta("$" + p_enum); //class
+		} else {
+			class_desc->push_meta("#" + t); //class
 		}
 	}
 	class_desc->add_text(t);
 	if (can_ref) {
-		class_desc->pop();
+		class_desc->pop(); // Pushed meta above.
 		if (add_array) {
-			class_desc->add_text(" ");
-			class_desc->push_meta("#Array"); //class
-			class_desc->add_text("[]");
-			class_desc->pop();
+			class_desc->add_text("]");
 		}
 	}
 	class_desc->pop();
+}
+
+void EditorHelp::_add_type_icon(const String &p_type, int p_size) {
+	Ref<Texture2D> icon;
+	if (has_theme_icon(p_type, SNAME("EditorIcons"))) {
+		icon = get_theme_icon(p_type, SNAME("EditorIcons"));
+	} else if (ClassDB::class_exists(p_type) && ClassDB::is_parent_class(p_type, "Object")) {
+		icon = get_theme_icon(SNAME("Object"), SNAME("EditorIcons"));
+	} else {
+		icon = get_theme_icon(SNAME("ArrowRight"), SNAME("EditorIcons"));
+	}
+
+	Vector2i size = Vector2i(icon->get_width(), icon->get_height());
+	if (p_size > 0) {
+		// Ensures icon scales proportionally on both axis, based on icon height.
+		float ratio = p_size / float(size.height);
+		size.width *= ratio;
+		size.height *= ratio;
+	}
+
+	class_desc->add_image(icon, size.width, size.height);
 }
 
 String EditorHelp::_fix_constant(const String &p_constant) const {
@@ -254,6 +299,23 @@ String EditorHelp::_fix_constant(const String &p_constant) const {
 
 	return p_constant;
 }
+
+// Macros for assigning the deprecation/experimental information to class members
+#define DEPRECATED_DOC_TAG                                                                  \
+	class_desc->push_color(get_theme_color(SNAME("error_color"), SNAME("Editor")));         \
+	Ref<Texture2D> error_icon = get_theme_icon(SNAME("StatusError"), SNAME("EditorIcons")); \
+	class_desc->add_text(" ");                                                              \
+	class_desc->add_image(error_icon, error_icon->get_width(), error_icon->get_height());   \
+	class_desc->add_text(" (" + TTR("Deprecated") + ")");                                   \
+	class_desc->pop();
+
+#define EXPERIMENTAL_DOC_TAG                                                                    \
+	class_desc->push_color(get_theme_color(SNAME("warning_color"), SNAME("Editor")));           \
+	Ref<Texture2D> warning_icon = get_theme_icon(SNAME("NodeWarning"), SNAME("EditorIcons"));   \
+	class_desc->add_text(" ");                                                                  \
+	class_desc->add_image(warning_icon, warning_icon->get_width(), warning_icon->get_height()); \
+	class_desc->add_text(" (" + TTR("Experimental") + ")");                                     \
+	class_desc->pop();
 
 void EditorHelp::_add_method(const DocData::MethodDoc &p_method, bool p_overview) {
 	method_line[p_method.name] = class_desc->get_paragraph_count() - 2; //gets overridden if description
@@ -281,7 +343,7 @@ void EditorHelp::_add_method(const DocData::MethodDoc &p_method, bool p_overview
 		class_desc->push_meta("@method " + p_method.name);
 	}
 
-	class_desc->push_color(headline_color);
+	class_desc->push_color(theme_cache.headline_color);
 	_add_text(p_method.name);
 	class_desc->pop();
 
@@ -289,12 +351,12 @@ void EditorHelp::_add_method(const DocData::MethodDoc &p_method, bool p_overview
 		class_desc->pop(); //meta
 	}
 
-	class_desc->push_color(symbol_color);
+	class_desc->push_color(theme_cache.symbol_color);
 	class_desc->add_text("(");
 	class_desc->pop();
 
 	for (int j = 0; j < p_method.arguments.size(); j++) {
-		class_desc->push_color(text_color);
+		class_desc->push_color(theme_cache.text_color);
 		if (j > 0) {
 			class_desc->add_text(", ");
 		}
@@ -303,10 +365,10 @@ void EditorHelp::_add_method(const DocData::MethodDoc &p_method, bool p_overview
 		class_desc->add_text(": ");
 		_add_type(p_method.arguments[j].type, p_method.arguments[j].enumeration);
 		if (!p_method.arguments[j].default_value.is_empty()) {
-			class_desc->push_color(symbol_color);
+			class_desc->push_color(theme_cache.symbol_color);
 			class_desc->add_text(" = ");
 			class_desc->pop();
-			class_desc->push_color(value_color);
+			class_desc->push_color(theme_cache.value_color);
 			_add_text(_fix_constant(p_method.arguments[j].default_value));
 			class_desc->pop();
 		}
@@ -315,24 +377,53 @@ void EditorHelp::_add_method(const DocData::MethodDoc &p_method, bool p_overview
 	}
 
 	if (is_vararg) {
-		class_desc->push_color(text_color);
+		class_desc->push_color(theme_cache.text_color);
 		if (p_method.arguments.size()) {
 			class_desc->add_text(", ");
 		}
-		class_desc->push_color(symbol_color);
+		class_desc->push_color(theme_cache.symbol_color);
 		class_desc->add_text("...");
 		class_desc->pop();
 		class_desc->pop();
 	}
 
-	class_desc->push_color(symbol_color);
+	class_desc->push_color(theme_cache.symbol_color);
 	class_desc->add_text(")");
 	class_desc->pop();
 	if (!p_method.qualifiers.is_empty()) {
-		class_desc->push_color(qualifier_color);
-		class_desc->add_text(" ");
-		_add_text(p_method.qualifiers);
+		class_desc->push_color(theme_cache.qualifier_color);
+
+		PackedStringArray qualifiers = p_method.qualifiers.split_spaces();
+		for (const String &qualifier : qualifiers) {
+			String hint;
+			if (qualifier == "vararg") {
+				hint = TTR("This method supports a variable number of arguments.");
+			} else if (qualifier == "virtual") {
+				hint = TTR("This method is called by the engine.\nIt can be overridden to customize built-in behavior.");
+			} else if (qualifier == "const") {
+				hint = TTR("This method has no side effects.\nIt does not modify the object in any way.");
+			} else if (qualifier == "static") {
+				hint = TTR("This method does not need an instance to be called.\nIt can be called directly using the class name.");
+			}
+
+			class_desc->add_text(" ");
+			if (!hint.is_empty()) {
+				class_desc->push_hint(hint);
+				class_desc->add_text(qualifier);
+				class_desc->pop();
+			} else {
+				class_desc->add_text(qualifier);
+			}
+		}
 		class_desc->pop();
+	}
+
+	if (p_method.is_deprecated) {
+		DEPRECATED_DOC_TAG;
+	}
+
+	if (p_method.is_experimental) {
+		EXPERIMENTAL_DOC_TAG;
 	}
 
 	if (p_overview) {
@@ -343,6 +434,38 @@ void EditorHelp::_add_method(const DocData::MethodDoc &p_method, bool p_overview
 void EditorHelp::_add_bulletpoint() {
 	static const char32_t prefix[3] = { 0x25CF /* filled circle */, ' ', 0 };
 	class_desc->add_text(String(prefix));
+}
+
+void EditorHelp::_push_normal_font() {
+	class_desc->push_font(theme_cache.doc_font);
+	class_desc->push_font_size(theme_cache.doc_font_size);
+}
+
+void EditorHelp::_pop_normal_font() {
+	class_desc->pop();
+	class_desc->pop();
+}
+
+void EditorHelp::_push_title_font() {
+	class_desc->push_color(theme_cache.title_color);
+	class_desc->push_font(theme_cache.doc_title_font);
+	class_desc->push_font_size(theme_cache.doc_title_font_size);
+}
+
+void EditorHelp::_pop_title_font() {
+	class_desc->pop();
+	class_desc->pop();
+	class_desc->pop();
+}
+
+void EditorHelp::_push_code_font() {
+	class_desc->push_font(theme_cache.doc_code_font);
+	class_desc->push_font_size(theme_cache.doc_code_font_size);
+}
+
+void EditorHelp::_pop_code_font() {
+	class_desc->pop();
+	class_desc->pop();
 }
 
 Error EditorHelp::_goto_desc(const String &p_class, int p_vscr) {
@@ -365,14 +488,10 @@ Error EditorHelp::_goto_desc(const String &p_class, int p_vscr) {
 	return OK;
 }
 
-void EditorHelp::_update_method_list(const Vector<DocData::MethodDoc> p_methods, bool &r_method_descrpitons) {
-	Ref<Font> doc_code_font = get_theme_font(SNAME("doc_source"), SNAME("EditorFonts"));
-	class_desc->pop(); // title font size
-	class_desc->pop(); // title font
-	class_desc->pop(); // title color
-
+void EditorHelp::_update_method_list(const Vector<DocData::MethodDoc> p_methods) {
 	class_desc->add_newline();
-	class_desc->push_font(doc_code_font);
+
+	_push_code_font();
 	class_desc->push_indent(1);
 	class_desc->push_table(2);
 	class_desc->set_table_column_expand(1, true);
@@ -415,10 +534,6 @@ void EditorHelp::_update_method_list(const Vector<DocData::MethodDoc> p_methods,
 				class_desc->pop(); //cell
 			}
 
-			if (!m[i].description.strip_edges().is_empty() || m[i].errors_returned.size() > 0) {
-				r_method_descrpitons = true;
-			}
-
 			_add_method(m[i], true);
 		}
 
@@ -427,19 +542,14 @@ void EditorHelp::_update_method_list(const Vector<DocData::MethodDoc> p_methods,
 
 	class_desc->pop(); //table
 	class_desc->pop();
-	class_desc->pop(); // font
+	_pop_code_font();
+
 	class_desc->add_newline();
 	class_desc->add_newline();
 }
 
 void EditorHelp::_update_method_descriptions(const DocData::ClassDoc p_classdoc, const Vector<DocData::MethodDoc> p_methods, const String &p_method_type) {
-	Ref<Font> doc_font = get_theme_font(SNAME("doc"), SNAME("EditorFonts"));
-	Ref<Font> doc_bold_font = get_theme_font(SNAME("doc_bold"), SNAME("EditorFonts"));
-	Ref<Font> doc_code_font = get_theme_font(SNAME("doc_source"), SNAME("EditorFonts"));
-	String link_color_text = title_color.to_html(false);
-	class_desc->pop(); // title font size
-	class_desc->pop(); // title font
-	class_desc->pop(); // title color
+	String link_color_text = theme_cache.title_color.to_html(false);
 
 	class_desc->add_newline();
 	class_desc->add_newline();
@@ -455,15 +565,15 @@ void EditorHelp::_update_method_descriptions(const DocData::ClassDoc p_classdoc,
 		}
 
 		for (int i = 0; i < methods_filtered.size(); i++) {
-			class_desc->push_font(doc_code_font);
+			_push_code_font();
 			_add_method(methods_filtered[i], false);
-			class_desc->pop();
+			_pop_code_font();
 
 			class_desc->add_newline();
 			class_desc->add_newline();
 
-			class_desc->push_color(text_color);
-			class_desc->push_font(doc_font);
+			class_desc->push_color(theme_cache.text_color);
+			_push_normal_font();
 			class_desc->push_indent(1);
 			if (methods_filtered[i].errors_returned.size()) {
 				class_desc->append_text(TTR("Error codes returned:"));
@@ -495,7 +605,7 @@ void EditorHelp::_update_method_descriptions(const DocData::ClassDoc p_classdoc,
 			} else {
 				class_desc->add_image(get_theme_icon(SNAME("Error"), SNAME("EditorIcons")));
 				class_desc->add_text(" ");
-				class_desc->push_color(comment_color);
+				class_desc->push_color(theme_cache.comment_color);
 				if (p_classdoc.is_script_doc) {
 					class_desc->append_text(vformat(TTR("There is currently no description for this %s."), p_method_type));
 				} else {
@@ -505,8 +615,9 @@ void EditorHelp::_update_method_descriptions(const DocData::ClassDoc p_classdoc,
 			}
 
 			class_desc->pop();
+			_pop_normal_font();
 			class_desc->pop();
-			class_desc->pop();
+
 			class_desc->add_newline();
 			class_desc->add_newline();
 			class_desc->add_newline();
@@ -525,47 +636,48 @@ void EditorHelp::_update_doc() {
 	method_line.clear();
 	section_line.clear();
 
-	_update_theme();
-	String link_color_text = title_color.to_html(false);
+	String link_color_text = theme_cache.title_color.to_html(false);
 
 	DocData::ClassDoc cd = doc->class_list[edited_class]; // Make a copy, so we can sort without worrying.
 
-	Ref<Texture2D> icon;
-	if (has_theme_icon(edited_class, SNAME("EditorIcons"))) {
-		icon = get_theme_icon(edited_class, SNAME("EditorIcons"));
-	} else if (ClassDB::class_exists(edited_class) && ClassDB::is_parent_class(edited_class, "Object")) {
-		icon = get_theme_icon(SNAME("Object"), SNAME("EditorIcons"));
-	} else {
-		icon = get_theme_icon(SNAME("ArrowRight"), SNAME("EditorIcons"));
-	}
-
 	// Class name
 	section_line.push_back(Pair<String, int>(TTR("Top"), 0));
-	class_desc->push_font(doc_title_font);
-	class_desc->push_font_size(doc_title_font_size);
-	class_desc->push_color(title_color);
+	_push_title_font();
 	class_desc->add_text(TTR("Class:") + " ");
-	class_desc->add_image(icon, icon->get_width(), icon->get_height());
+	_add_type_icon(edited_class, theme_cache.doc_title_font_size);
 	class_desc->add_text(" ");
-	class_desc->push_color(headline_color);
+	class_desc->push_color(theme_cache.headline_color);
 	_add_text(edited_class);
 	class_desc->pop(); // color
-	class_desc->pop(); // color
-	class_desc->pop(); // font size
-	class_desc->pop(); // font
+	_pop_title_font();
+
+	if (cd.is_deprecated) {
+		class_desc->add_text(" ");
+		Ref<Texture2D> error_icon = get_theme_icon(SNAME("StatusError"), SNAME("EditorIcons"));
+		class_desc->add_image(error_icon, error_icon->get_width(), error_icon->get_height());
+	}
+	if (cd.is_experimental) {
+		class_desc->add_text(" ");
+		Ref<Texture2D> warning_icon = get_theme_icon(SNAME("NodeWarning"), SNAME("EditorIcons"));
+		class_desc->add_image(warning_icon, warning_icon->get_width(), warning_icon->get_height());
+	}
 	class_desc->add_newline();
+
+	const String non_breaking_space = String::chr(160);
 
 	// Inheritance tree
 
 	// Ascendents
 	if (!cd.inherits.is_empty()) {
-		class_desc->push_color(title_color);
-		class_desc->push_font(doc_font);
+		class_desc->push_color(theme_cache.title_color);
+		_push_normal_font();
 		class_desc->add_text(TTR("Inherits:") + " ");
 
 		String inherits = cd.inherits;
 
 		while (!inherits.is_empty()) {
+			_add_type_icon(inherits);
+			class_desc->add_text(non_breaking_space); // Otherwise icon borrows hyperlink from _add_type().
 			_add_type(inherits);
 
 			inherits = doc->class_list[inherits].inherits;
@@ -575,7 +687,7 @@ void EditorHelp::_update_doc() {
 			}
 		}
 
-		class_desc->pop();
+		_pop_normal_font();
 		class_desc->pop();
 		class_desc->add_newline();
 	}
@@ -585,11 +697,11 @@ void EditorHelp::_update_doc() {
 		bool found = false;
 		bool prev = false;
 
-		class_desc->push_font(doc_font);
+		_push_normal_font();
 		for (const KeyValue<String, DocData::ClassDoc> &E : doc->class_list) {
 			if (E.value.inherits == cd.name) {
 				if (!found) {
-					class_desc->push_color(title_color);
+					class_desc->push_color(theme_cache.title_color);
 					class_desc->add_text(TTR("Inherited by:") + " ");
 					found = true;
 				}
@@ -597,12 +709,13 @@ void EditorHelp::_update_doc() {
 				if (prev) {
 					class_desc->add_text(" , ");
 				}
-
+				_add_type_icon(E.value.name);
+				class_desc->add_text(non_breaking_space); // Otherwise icon borrows hyperlink from _add_type().
 				_add_type(E.value.name);
 				prev = true;
 			}
 		}
-		class_desc->pop();
+		_pop_normal_font();
 
 		if (found) {
 			class_desc->pop();
@@ -610,18 +723,43 @@ void EditorHelp::_update_doc() {
 		}
 	}
 
+	// Note if deprecated.
+	if (cd.is_deprecated) {
+		Ref<Texture2D> error_icon = get_theme_icon(SNAME("StatusError"), SNAME("EditorIcons"));
+		class_desc->push_color(get_theme_color(SNAME("error_color"), SNAME("Editor")));
+		class_desc->add_image(error_icon, error_icon->get_width(), error_icon->get_height());
+		class_desc->add_text(String(" ") + TTR("This class is marked as deprecated. It will be removed in future versions."));
+		class_desc->pop();
+		class_desc->add_newline();
+	}
+
+	// Note if experimental.
+	if (cd.is_experimental) {
+		Ref<Texture2D> warning_icon = get_theme_icon(SNAME("NodeWarning"), SNAME("EditorIcons"));
+		class_desc->push_color(get_theme_color(SNAME("warning_color"), SNAME("Editor")));
+		class_desc->add_image(warning_icon, warning_icon->get_width(), warning_icon->get_height());
+		class_desc->add_text(String(" ") + TTR("This class is marked as experimental. It is subject to likely change or possible removal in future versions. Use at your own discretion."));
+		class_desc->pop();
+		class_desc->add_newline();
+	}
+
+	bool has_description = false;
+
 	class_desc->add_newline();
 	class_desc->add_newline();
 
 	// Brief description
 	if (!cd.brief_description.strip_edges().is_empty()) {
-		class_desc->push_color(text_color);
-		class_desc->push_font(doc_bold_font);
+		has_description = true;
+
+		class_desc->push_color(theme_cache.text_color);
+		class_desc->push_font(theme_cache.doc_bold_font);
 		class_desc->push_indent(1);
 		_add_text(DTR(cd.brief_description));
 		class_desc->pop();
 		class_desc->pop();
 		class_desc->pop();
+
 		class_desc->add_newline();
 		class_desc->add_newline();
 		class_desc->add_newline();
@@ -629,43 +767,55 @@ void EditorHelp::_update_doc() {
 
 	// Class description
 	if (!cd.description.strip_edges().is_empty()) {
+		has_description = true;
+
 		section_line.push_back(Pair<String, int>(TTR("Description"), class_desc->get_paragraph_count() - 2));
 		description_line = class_desc->get_paragraph_count() - 2;
-		class_desc->push_color(title_color);
-		class_desc->push_font(doc_title_font);
-		class_desc->push_font_size(doc_title_font_size);
+		_push_title_font();
 		class_desc->add_text(TTR("Description"));
-		class_desc->pop(); // font size
-		class_desc->pop(); // font
-		class_desc->pop(); // color
+		_pop_title_font();
 
 		class_desc->add_newline();
 		class_desc->add_newline();
-		class_desc->push_color(text_color);
-		class_desc->push_font(doc_font);
+		class_desc->push_color(theme_cache.text_color);
+		_push_normal_font();
 		class_desc->push_indent(1);
 		_add_text(DTR(cd.description));
 		class_desc->pop();
+		_pop_normal_font();
 		class_desc->pop();
-		class_desc->pop();
+
 		class_desc->add_newline();
+		class_desc->add_newline();
+		class_desc->add_newline();
+	}
+
+	if (!has_description) {
+		class_desc->add_image(get_theme_icon(SNAME("Error"), SNAME("EditorIcons")));
+		class_desc->add_text(" ");
+		class_desc->push_color(theme_cache.comment_color);
+
+		if (cd.is_script_doc) {
+			class_desc->append_text(TTR("There is currently no description for this class."));
+		} else {
+			class_desc->append_text(TTR("There is currently no description for this class. Please help us by [color=$color][url=$url]contributing one[/url][/color]!").replace("$url", CONTRIBUTE_URL).replace("$color", link_color_text));
+		}
+
+		class_desc->pop();
 		class_desc->add_newline();
 		class_desc->add_newline();
 	}
 
 	// Online tutorials
 	if (cd.tutorials.size()) {
-		class_desc->push_color(title_color);
-		class_desc->push_font(doc_title_font);
-		class_desc->push_font_size(doc_title_font_size);
+		_push_title_font();
 		class_desc->add_text(TTR("Online Tutorials"));
-		class_desc->pop(); // font size
-		class_desc->pop(); // font
-		class_desc->pop(); // color
+		_pop_title_font();
+
+		class_desc->add_newline();
 
 		class_desc->push_indent(1);
-		class_desc->push_font(doc_code_font);
-		class_desc->add_newline();
+		_push_code_font();
 
 		for (int i = 0; i < cd.tutorials.size(); i++) {
 			const String link = DTR(cd.tutorials[i].link);
@@ -675,21 +825,21 @@ void EditorHelp::_update_doc() {
 				linktxt = link.substr(seppos + 2);
 			}
 
-			class_desc->push_color(symbol_color);
+			class_desc->push_color(theme_cache.symbol_color);
 			class_desc->append_text("[url=" + link + "]" + linktxt + "[/url]");
 			class_desc->pop();
 			class_desc->add_newline();
 		}
 
+		_pop_code_font();
 		class_desc->pop();
-		class_desc->pop();
+
 		class_desc->add_newline();
 		class_desc->add_newline();
 	}
 
 	// Properties overview
 	HashSet<String> skip_methods;
-	bool property_descr = false;
 
 	bool has_properties = cd.properties.size() != 0;
 	if (cd.is_script_doc) {
@@ -705,16 +855,13 @@ void EditorHelp::_update_doc() {
 
 	if (has_properties) {
 		section_line.push_back(Pair<String, int>(TTR("Properties"), class_desc->get_paragraph_count() - 2));
-		class_desc->push_color(title_color);
-		class_desc->push_font(doc_title_font);
-		class_desc->push_font_size(doc_title_font_size);
+		_push_title_font();
 		class_desc->add_text(TTR("Properties"));
-		class_desc->pop(); // font size
-		class_desc->pop(); // font
-		class_desc->pop(); // color
+		_pop_title_font();
 
 		class_desc->add_newline();
-		class_desc->push_font(doc_code_font);
+
+		_push_code_font();
 		class_desc->push_indent(1);
 		class_desc->push_table(4);
 		class_desc->set_table_column_expand(1, true);
@@ -729,9 +876,9 @@ void EditorHelp::_update_doc() {
 			// Property type.
 			class_desc->push_cell();
 			class_desc->push_paragraph(HORIZONTAL_ALIGNMENT_RIGHT, Control::TEXT_DIRECTION_AUTO, "");
-			class_desc->push_font(doc_code_font);
+			_push_code_font();
 			_add_type(cd.properties[i].type, cd.properties[i].enumeration);
-			class_desc->pop();
+			_pop_code_font();
 			class_desc->pop();
 			class_desc->pop(); // cell
 
@@ -756,8 +903,8 @@ void EditorHelp::_update_doc() {
 
 			// Property name.
 			class_desc->push_cell();
-			class_desc->push_font(doc_code_font);
-			class_desc->push_color(headline_color);
+			_push_code_font();
+			class_desc->push_color(theme_cache.headline_color);
 
 			if (describe) {
 				class_desc->push_meta("@member " + cd.properties[i].name);
@@ -767,19 +914,18 @@ void EditorHelp::_update_doc() {
 
 			if (describe) {
 				class_desc->pop();
-				property_descr = true;
 			}
 
 			class_desc->pop();
-			class_desc->pop();
+			_pop_code_font();
 			class_desc->pop(); // cell
 
 			// Property value.
 			class_desc->push_cell();
-			class_desc->push_font(doc_code_font);
+			_push_code_font();
 
 			if (!cd.properties[i].default_value.is_empty()) {
-				class_desc->push_color(symbol_color);
+				class_desc->push_color(theme_cache.symbol_color);
 				if (cd.properties[i].overridden) {
 					class_desc->add_text(" [");
 					class_desc->push_meta("@member " + cd.properties[i].overrides + "." + cd.properties[i].name);
@@ -791,64 +937,69 @@ void EditorHelp::_update_doc() {
 				}
 				class_desc->pop();
 
-				class_desc->push_color(value_color);
+				class_desc->push_color(theme_cache.value_color);
 				_add_text(_fix_constant(cd.properties[i].default_value));
 				class_desc->pop();
 
-				class_desc->push_color(symbol_color);
+				class_desc->push_color(theme_cache.symbol_color);
 				class_desc->add_text("]");
 				class_desc->pop();
 			}
 
-			class_desc->pop();
+			if (cd.properties[i].is_deprecated) {
+				DEPRECATED_DOC_TAG;
+			}
+			if (cd.properties[i].is_experimental) {
+				EXPERIMENTAL_DOC_TAG;
+			}
+
+			_pop_code_font();
 			class_desc->pop(); // cell
 
 			// Property setters and getters.
 			class_desc->push_cell();
-			class_desc->push_font(doc_code_font);
+			_push_code_font();
 
 			if (cd.is_script_doc && (!cd.properties[i].setter.is_empty() || !cd.properties[i].getter.is_empty())) {
-				class_desc->push_color(symbol_color);
+				class_desc->push_color(theme_cache.symbol_color);
 				class_desc->add_text(" [" + TTR("property:") + " ");
 				class_desc->pop(); // color
 
 				if (!cd.properties[i].setter.is_empty()) {
-					class_desc->push_color(value_color);
+					class_desc->push_color(theme_cache.value_color);
 					class_desc->add_text("setter");
 					class_desc->pop(); // color
 				}
 				if (!cd.properties[i].getter.is_empty()) {
 					if (!cd.properties[i].setter.is_empty()) {
-						class_desc->push_color(symbol_color);
+						class_desc->push_color(theme_cache.symbol_color);
 						class_desc->add_text(", ");
 						class_desc->pop(); // color
 					}
-					class_desc->push_color(value_color);
+					class_desc->push_color(theme_cache.value_color);
 					class_desc->add_text("getter");
 					class_desc->pop(); // color
 				}
 
-				class_desc->push_color(symbol_color);
+				class_desc->push_color(theme_cache.symbol_color);
 				class_desc->add_text("]");
 				class_desc->pop(); // color
 			}
 
-			class_desc->pop();
+			_pop_code_font();
 			class_desc->pop(); // cell
 		}
 
 		class_desc->pop(); // table
 		class_desc->pop();
-		class_desc->pop(); // font
+		_pop_code_font();
+
 		class_desc->add_newline();
 		class_desc->add_newline();
 	}
 
 	// Methods overview
-	bool constructor_descriptions = false;
-	bool method_descriptions = false;
-	bool operator_descriptions = false;
-	bool sort_methods = EditorSettings::get_singleton()->get("text_editor/help/sort_functions_alphabetically");
+	bool sort_methods = EDITOR_GET("text_editor/help/sort_functions_alphabetically");
 
 	Vector<DocData::MethodDoc> methods;
 
@@ -871,23 +1022,24 @@ void EditorHelp::_update_doc() {
 		}
 
 		section_line.push_back(Pair<String, int>(TTR("Constructors"), class_desc->get_paragraph_count() - 2));
-		class_desc->push_color(title_color);
-		class_desc->push_font(doc_title_font);
-		class_desc->push_font_size(doc_title_font_size);
+		_push_title_font();
 		class_desc->add_text(TTR("Constructors"));
-		_update_method_list(cd.constructors, constructor_descriptions);
+		_pop_title_font();
+
+		_update_method_list(cd.constructors);
 	}
 
 	if (!methods.is_empty()) {
 		if (sort_methods) {
 			methods.sort();
 		}
+
 		section_line.push_back(Pair<String, int>(TTR("Methods"), class_desc->get_paragraph_count() - 2));
-		class_desc->push_color(title_color);
-		class_desc->push_font(doc_title_font);
-		class_desc->push_font_size(doc_title_font_size);
+		_push_title_font();
 		class_desc->add_text(TTR("Methods"));
-		_update_method_list(methods, method_descriptions);
+		_pop_title_font();
+
+		_update_method_list(methods);
 	}
 
 	if (!cd.operators.is_empty()) {
@@ -896,23 +1048,19 @@ void EditorHelp::_update_doc() {
 		}
 
 		section_line.push_back(Pair<String, int>(TTR("Operators"), class_desc->get_paragraph_count() - 2));
-		class_desc->push_color(title_color);
-		class_desc->push_font(doc_title_font);
-		class_desc->push_font_size(doc_title_font_size);
+		_push_title_font();
 		class_desc->add_text(TTR("Operators"));
-		_update_method_list(cd.operators, operator_descriptions);
+		_pop_title_font();
+
+		_update_method_list(cd.operators);
 	}
 
 	// Theme properties
 	if (!cd.theme_properties.is_empty()) {
 		section_line.push_back(Pair<String, int>(TTR("Theme Properties"), class_desc->get_paragraph_count() - 2));
-		class_desc->push_color(title_color);
-		class_desc->push_font(doc_title_font);
-		class_desc->push_font_size(doc_title_font_size);
+		_push_title_font();
 		class_desc->add_text(TTR("Theme Properties"));
-		class_desc->pop(); // font size
-		class_desc->pop(); // font
-		class_desc->pop(); // color
+		_pop_title_font();
 
 		class_desc->add_newline();
 		class_desc->add_newline();
@@ -934,59 +1082,55 @@ void EditorHelp::_update_doc() {
 			if (theme_data_type != cd.theme_properties[i].data_type) {
 				theme_data_type = cd.theme_properties[i].data_type;
 
-				class_desc->push_color(title_color);
-				class_desc->push_font(doc_title_font);
-				class_desc->push_font_size(doc_title_font_size);
+				_push_title_font();
 				if (data_type_names.has(theme_data_type)) {
 					class_desc->add_text(data_type_names[theme_data_type]);
 				} else {
 					class_desc->add_text("");
 				}
-				class_desc->pop(); // font size
-				class_desc->pop(); // font
-				class_desc->pop(); // color
+				_pop_title_font();
 
 				class_desc->add_newline();
 				class_desc->add_newline();
 			}
 
 			// Theme item header.
-			class_desc->push_font(doc_code_font);
+			_push_code_font();
 			_add_bulletpoint();
 
 			// Theme item object type.
 			_add_type(cd.theme_properties[i].type);
 
 			// Theme item name.
-			class_desc->push_color(headline_color);
+			class_desc->push_color(theme_cache.headline_color);
 			class_desc->add_text(" ");
 			_add_text(cd.theme_properties[i].name);
 			class_desc->pop();
 
 			// Theme item default value.
 			if (!cd.theme_properties[i].default_value.is_empty()) {
-				class_desc->push_color(symbol_color);
+				class_desc->push_color(theme_cache.symbol_color);
 				class_desc->add_text(" [" + TTR("default:") + " ");
 				class_desc->pop();
-				class_desc->push_color(value_color);
+				class_desc->push_color(theme_cache.value_color);
 				_add_text(_fix_constant(cd.theme_properties[i].default_value));
 				class_desc->pop();
-				class_desc->push_color(symbol_color);
+				class_desc->push_color(theme_cache.symbol_color);
 				class_desc->add_text("]");
 				class_desc->pop();
 			}
 
-			class_desc->pop(); // monofont
+			_pop_code_font();
 
 			// Theme item description.
 			if (!cd.theme_properties[i].description.strip_edges().is_empty()) {
-				class_desc->push_font(doc_font);
-				class_desc->push_color(comment_color);
+				class_desc->push_color(theme_cache.comment_color);
+				_push_normal_font();
 				class_desc->push_indent(1);
 				_add_text(DTR(cd.theme_properties[i].description));
 				class_desc->pop(); // indent
+				_pop_normal_font();
 				class_desc->pop(); // color
-				class_desc->pop(); // font
 			}
 
 			class_desc->add_newline();
@@ -1004,13 +1148,9 @@ void EditorHelp::_update_doc() {
 		}
 
 		section_line.push_back(Pair<String, int>(TTR("Signals"), class_desc->get_paragraph_count() - 2));
-		class_desc->push_color(title_color);
-		class_desc->push_font(doc_title_font);
-		class_desc->push_font_size(doc_title_font_size);
+		_push_title_font();
 		class_desc->add_text(TTR("Signals"));
-		class_desc->pop(); // font size
-		class_desc->pop(); // font
-		class_desc->pop(); // color
+		_pop_title_font();
 
 		class_desc->add_newline();
 		class_desc->add_newline();
@@ -1020,16 +1160,16 @@ void EditorHelp::_update_doc() {
 		for (int i = 0; i < cd.signals.size(); i++) {
 			signal_line[cd.signals[i].name] = class_desc->get_paragraph_count() - 2; // Gets overridden if description.
 
-			class_desc->push_font(doc_code_font); // monofont
+			_push_code_font();
 			_add_bulletpoint();
-			class_desc->push_color(headline_color);
+			class_desc->push_color(theme_cache.headline_color);
 			_add_text(cd.signals[i].name);
 			class_desc->pop();
-			class_desc->push_color(symbol_color);
+			class_desc->push_color(theme_cache.symbol_color);
 			class_desc->add_text("(");
 			class_desc->pop();
 			for (int j = 0; j < cd.signals[i].arguments.size(); j++) {
-				class_desc->push_color(text_color);
+				class_desc->push_color(theme_cache.text_color);
 				if (j > 0) {
 					class_desc->add_text(", ");
 				}
@@ -1038,7 +1178,7 @@ void EditorHelp::_update_doc() {
 				class_desc->add_text(": ");
 				_add_type(cd.signals[i].arguments[j].type);
 				if (!cd.signals[i].arguments[j].default_value.is_empty()) {
-					class_desc->push_color(symbol_color);
+					class_desc->push_color(theme_cache.symbol_color);
 					class_desc->add_text(" = ");
 					class_desc->pop();
 					_add_text(cd.signals[i].arguments[j].default_value);
@@ -1047,19 +1187,29 @@ void EditorHelp::_update_doc() {
 				class_desc->pop();
 			}
 
-			class_desc->push_color(symbol_color);
+			class_desc->push_color(theme_cache.symbol_color);
 			class_desc->add_text(")");
+
+			if (cd.signals[i].is_deprecated) {
+				DEPRECATED_DOC_TAG;
+			}
+			if (cd.signals[i].is_experimental) {
+				EXPERIMENTAL_DOC_TAG;
+			}
+
 			class_desc->pop();
-			class_desc->pop(); // end monofont
+			_pop_code_font();
+
 			if (!cd.signals[i].description.strip_edges().is_empty()) {
-				class_desc->push_font(doc_font);
-				class_desc->push_color(comment_color);
+				class_desc->push_color(theme_cache.comment_color);
+				_push_normal_font();
 				class_desc->push_indent(1);
 				_add_text(DTR(cd.signals[i].description));
 				class_desc->pop(); // indent
-				class_desc->pop();
-				class_desc->pop(); // font
+				_pop_normal_font();
+				class_desc->pop(); // color
 			}
+
 			class_desc->add_newline();
 			class_desc->add_newline();
 		}
@@ -1092,13 +1242,9 @@ void EditorHelp::_update_doc() {
 		// Enums
 		if (enums.size()) {
 			section_line.push_back(Pair<String, int>(TTR("Enumerations"), class_desc->get_paragraph_count() - 2));
-			class_desc->push_color(title_color);
-			class_desc->push_font(doc_title_font);
-			class_desc->push_font_size(doc_title_font_size);
+			_push_title_font();
 			class_desc->add_text(TTR("Enumerations"));
-			class_desc->pop(); // font size
-			class_desc->pop(); // font
-			class_desc->pop(); // color
+			_pop_title_font();
 			class_desc->push_indent(1);
 
 			class_desc->add_newline();
@@ -1106,24 +1252,26 @@ void EditorHelp::_update_doc() {
 			for (KeyValue<String, Vector<DocData::ConstantDoc>> &E : enums) {
 				enum_line[E.key] = class_desc->get_paragraph_count() - 2;
 
-				class_desc->push_font(doc_code_font);
-				class_desc->push_color(title_color);
+				_push_code_font();
+				class_desc->push_color(theme_cache.title_color);
 				if (E.value.size() && E.value[0].is_bitfield) {
 					class_desc->add_text("flags  ");
 				} else {
 					class_desc->add_text("enum  ");
 				}
 				class_desc->pop();
+
 				String e = E.key;
 				if ((e.get_slice_count(".") > 1) && (e.get_slice(".", 0) == edited_class)) {
 					e = e.get_slice(".", 1);
 				}
 
-				class_desc->push_color(headline_color);
+				class_desc->push_color(theme_cache.headline_color);
 				class_desc->add_text(e);
 				class_desc->pop();
-				class_desc->pop();
-				class_desc->push_color(symbol_color);
+				_pop_code_font();
+
+				class_desc->push_color(theme_cache.symbol_color);
 				class_desc->add_text(":");
 				class_desc->pop();
 
@@ -1132,13 +1280,14 @@ void EditorHelp::_update_doc() {
 
 				// Enum description.
 				if (e != "@unnamed_enums" && cd.enums.has(e)) {
-					class_desc->push_color(text_color);
-					class_desc->push_font(doc_font);
+					class_desc->push_color(theme_cache.text_color);
+					_push_normal_font();
 					class_desc->push_indent(1);
 					_add_text(cd.enums[e]);
 					class_desc->pop();
+					_pop_normal_font();
 					class_desc->pop();
-					class_desc->pop();
+
 					class_desc->add_newline();
 					class_desc->add_newline();
 				}
@@ -1157,26 +1306,34 @@ void EditorHelp::_update_doc() {
 					// Add the enum constant line to the constant_line map so we can locate it as a constant.
 					constant_line[enum_list[i].name] = class_desc->get_paragraph_count() - 2;
 
-					class_desc->push_font(doc_code_font);
+					_push_code_font();
 					_add_bulletpoint();
-					class_desc->push_color(headline_color);
+					class_desc->push_color(theme_cache.headline_color);
 					_add_text(enum_list[i].name);
 					class_desc->pop();
-					class_desc->push_color(symbol_color);
+					class_desc->push_color(theme_cache.symbol_color);
 					class_desc->add_text(" = ");
 					class_desc->pop();
-					class_desc->push_color(value_color);
+					class_desc->push_color(theme_cache.value_color);
 					_add_text(_fix_constant(enum_list[i].value));
 					class_desc->pop();
-					class_desc->pop();
+					_pop_code_font();
+
+					if (enum_list[i].is_deprecated) {
+						DEPRECATED_DOC_TAG;
+					}
+
+					if (enum_list[i].is_experimental) {
+						EXPERIMENTAL_DOC_TAG;
+					}
 
 					class_desc->add_newline();
 
 					if (!enum_list[i].description.strip_edges().is_empty()) {
-						class_desc->push_font(doc_font);
-						class_desc->push_color(comment_color);
+						class_desc->push_color(theme_cache.comment_color);
+						_push_normal_font();
 						_add_text(DTR(enum_list[i].description));
-						class_desc->pop();
+						_pop_normal_font();
 						class_desc->pop();
 						if (DTR(enum_list[i].description).find("\n") > 0) {
 							class_desc->add_newline();
@@ -1202,24 +1359,21 @@ void EditorHelp::_update_doc() {
 		// Constants
 		if (constants.size()) {
 			section_line.push_back(Pair<String, int>(TTR("Constants"), class_desc->get_paragraph_count() - 2));
-			class_desc->push_color(title_color);
-			class_desc->push_font(doc_title_font);
-			class_desc->push_font_size(doc_title_font_size);
+			_push_title_font();
 			class_desc->add_text(TTR("Constants"));
-			class_desc->pop(); // font size
-			class_desc->pop(); // font
-			class_desc->pop(); // color
+			_pop_title_font();
 			class_desc->push_indent(1);
 
 			class_desc->add_newline();
 
 			for (int i = 0; i < constants.size(); i++) {
 				constant_line[constants[i].name] = class_desc->get_paragraph_count() - 2;
-				class_desc->push_font(doc_code_font);
+
+				_push_code_font();
 
 				if (constants[i].value.begins_with("Color(") && constants[i].value.ends_with(")")) {
 					String stripped = constants[i].value.replace(" ", "").replace("Color(", "").replace(")", "");
-					Vector<float> color = stripped.split_floats(",");
+					PackedFloat64Array color = stripped.split_floats(",");
 					if (color.size() >= 3) {
 						class_desc->push_color(Color(color[0], color[1], color[2]));
 						_add_bulletpoint();
@@ -1229,25 +1383,33 @@ void EditorHelp::_update_doc() {
 					_add_bulletpoint();
 				}
 
-				class_desc->push_color(headline_color);
+				class_desc->push_color(theme_cache.headline_color);
 				_add_text(constants[i].name);
 				class_desc->pop();
-				class_desc->push_color(symbol_color);
+				class_desc->push_color(theme_cache.symbol_color);
 				class_desc->add_text(" = ");
 				class_desc->pop();
-				class_desc->push_color(value_color);
+				class_desc->push_color(theme_cache.value_color);
 				_add_text(_fix_constant(constants[i].value));
 				class_desc->pop();
 
-				class_desc->pop();
+				_pop_code_font();
+
+				if (constants[i].is_deprecated) {
+					DEPRECATED_DOC_TAG;
+				}
+
+				if (constants[i].is_experimental) {
+					EXPERIMENTAL_DOC_TAG;
+				}
 
 				class_desc->add_newline();
 
 				if (!constants[i].description.strip_edges().is_empty()) {
-					class_desc->push_font(doc_font);
-					class_desc->push_color(comment_color);
+					class_desc->push_color(theme_cache.comment_color);
+					_push_normal_font();
 					_add_text(DTR(constants[i].description));
-					class_desc->pop();
+					_pop_normal_font();
 					class_desc->pop();
 					if (DTR(constants[i].description).find("\n") > 0) {
 						class_desc->add_newline();
@@ -1269,13 +1431,9 @@ void EditorHelp::_update_doc() {
 		}
 
 		section_line.push_back(Pair<String, int>(TTR("Annotations"), class_desc->get_paragraph_count() - 2));
-		class_desc->push_color(title_color);
-		class_desc->push_font(doc_title_font);
-		class_desc->push_font_size(doc_title_font_size);
+		_push_title_font();
 		class_desc->add_text(TTR("Annotations"));
-		class_desc->pop(); // font size
-		class_desc->pop(); // font
-		class_desc->pop(); // color
+		_pop_title_font();
 
 		class_desc->add_newline();
 		class_desc->add_newline();
@@ -1285,18 +1443,18 @@ void EditorHelp::_update_doc() {
 		for (int i = 0; i < cd.annotations.size(); i++) {
 			annotation_line[cd.annotations[i].name] = class_desc->get_paragraph_count() - 2; // Gets overridden if description.
 
-			class_desc->push_font(doc_code_font); // monofont
+			_push_code_font();
 			_add_bulletpoint();
-			class_desc->push_color(headline_color);
+			class_desc->push_color(theme_cache.headline_color);
 			_add_text(cd.annotations[i].name);
 			class_desc->pop();
 
 			if (cd.annotations[i].arguments.size() > 0) {
-				class_desc->push_color(symbol_color);
+				class_desc->push_color(theme_cache.symbol_color);
 				class_desc->add_text("(");
 				class_desc->pop();
 				for (int j = 0; j < cd.annotations[i].arguments.size(); j++) {
-					class_desc->push_color(text_color);
+					class_desc->push_color(theme_cache.text_color);
 					if (j > 0) {
 						class_desc->add_text(", ");
 					}
@@ -1305,7 +1463,7 @@ void EditorHelp::_update_doc() {
 					class_desc->add_text(": ");
 					_add_type(cd.annotations[i].arguments[j].type);
 					if (!cd.annotations[i].arguments[j].default_value.is_empty()) {
-						class_desc->push_color(symbol_color);
+						class_desc->push_color(theme_cache.symbol_color);
 						class_desc->add_text(" = ");
 						class_desc->pop();
 						_add_text(cd.annotations[i].arguments[j].default_value);
@@ -1315,43 +1473,43 @@ void EditorHelp::_update_doc() {
 				}
 
 				if (cd.annotations[i].qualifiers.contains("vararg")) {
-					class_desc->push_color(text_color);
+					class_desc->push_color(theme_cache.text_color);
 					if (cd.annotations[i].arguments.size()) {
 						class_desc->add_text(", ");
 					}
-					class_desc->push_color(symbol_color);
+					class_desc->push_color(theme_cache.symbol_color);
 					class_desc->add_text("...");
 					class_desc->pop();
 					class_desc->pop();
 				}
 
-				class_desc->push_color(symbol_color);
+				class_desc->push_color(theme_cache.symbol_color);
 				class_desc->add_text(")");
 				class_desc->pop();
 			}
 
 			if (!cd.annotations[i].qualifiers.is_empty()) {
-				class_desc->push_color(qualifier_color);
+				class_desc->push_color(theme_cache.qualifier_color);
 				class_desc->add_text(" ");
 				_add_text(cd.annotations[i].qualifiers);
 				class_desc->pop();
 			}
 
-			class_desc->pop(); // end monofont
+			_pop_code_font();
 
 			if (!cd.annotations[i].description.strip_edges().is_empty()) {
-				class_desc->push_font(doc_font);
-				class_desc->push_color(comment_color);
+				class_desc->push_color(theme_cache.comment_color);
+				_push_normal_font();
 				class_desc->push_indent(1);
 				_add_text(DTR(cd.annotations[i].description));
 				class_desc->pop(); // indent
-				class_desc->pop();
-				class_desc->pop(); // font
+				_pop_normal_font();
+				class_desc->pop(); // color
 			} else {
 				class_desc->push_indent(1);
 				class_desc->add_image(get_theme_icon(SNAME("Error"), SNAME("EditorIcons")));
 				class_desc->add_text(" ");
-				class_desc->push_color(comment_color);
+				class_desc->push_color(theme_cache.comment_color);
 				if (cd.is_script_doc) {
 					class_desc->append_text(TTR("There is currently no description for this annotation."));
 				} else {
@@ -1369,21 +1527,21 @@ void EditorHelp::_update_doc() {
 	}
 
 	// Property descriptions
-	if (property_descr) {
+	if (has_properties) {
 		section_line.push_back(Pair<String, int>(TTR("Property Descriptions"), class_desc->get_paragraph_count() - 2));
-		class_desc->push_color(title_color);
-		class_desc->push_font(doc_title_font);
-		class_desc->push_font_size(doc_title_font_size);
+		_push_title_font();
 		class_desc->add_text(TTR("Property Descriptions"));
-		class_desc->pop(); // font size
-		class_desc->pop(); // font
-		class_desc->pop(); // color
+		_pop_title_font();
 
 		class_desc->add_newline();
 		class_desc->add_newline();
 
 		for (int i = 0; i < cd.properties.size(); i++) {
 			if (cd.properties[i].overridden) {
+				continue;
+			}
+			// Ignore undocumented private.
+			if (cd.properties[i].name.begins_with("_") && cd.properties[i].description.strip_edges().is_empty()) {
 				continue;
 			}
 
@@ -1393,61 +1551,68 @@ void EditorHelp::_update_doc() {
 			class_desc->set_table_column_expand(1, true);
 
 			class_desc->push_cell();
-			class_desc->push_font(doc_code_font);
+			_push_code_font();
 			_add_bulletpoint();
 
 			_add_type(cd.properties[i].type, cd.properties[i].enumeration);
 			class_desc->add_text(" ");
-			class_desc->pop(); // font
+			_pop_code_font();
 			class_desc->pop(); // cell
 
 			class_desc->push_cell();
-			class_desc->push_font(doc_code_font);
-			class_desc->push_color(headline_color);
+			_push_code_font();
+			class_desc->push_color(theme_cache.headline_color);
 			_add_text(cd.properties[i].name);
 			class_desc->pop(); // color
 
 			if (!cd.properties[i].default_value.is_empty()) {
-				class_desc->push_color(symbol_color);
+				class_desc->push_color(theme_cache.symbol_color);
 				class_desc->add_text(" [" + TTR("default:") + " ");
 				class_desc->pop(); // color
 
-				class_desc->push_color(value_color);
+				class_desc->push_color(theme_cache.value_color);
 				_add_text(_fix_constant(cd.properties[i].default_value));
 				class_desc->pop(); // color
 
-				class_desc->push_color(symbol_color);
+				class_desc->push_color(theme_cache.symbol_color);
 				class_desc->add_text("]");
 				class_desc->pop(); // color
 			}
 
+			if (cd.properties[i].is_deprecated) {
+				DEPRECATED_DOC_TAG;
+			}
+			if (cd.properties[i].is_experimental) {
+				EXPERIMENTAL_DOC_TAG;
+			}
+
 			if (cd.is_script_doc && (!cd.properties[i].setter.is_empty() || !cd.properties[i].getter.is_empty())) {
-				class_desc->push_color(symbol_color);
+				class_desc->push_color(theme_cache.symbol_color);
 				class_desc->add_text(" [" + TTR("property:") + " ");
 				class_desc->pop(); // color
 
 				if (!cd.properties[i].setter.is_empty()) {
-					class_desc->push_color(value_color);
+					class_desc->push_color(theme_cache.value_color);
 					class_desc->add_text("setter");
 					class_desc->pop(); // color
 				}
 				if (!cd.properties[i].getter.is_empty()) {
 					if (!cd.properties[i].setter.is_empty()) {
-						class_desc->push_color(symbol_color);
+						class_desc->push_color(theme_cache.symbol_color);
 						class_desc->add_text(", ");
 						class_desc->pop(); // color
 					}
-					class_desc->push_color(value_color);
+					class_desc->push_color(theme_cache.value_color);
 					class_desc->add_text("getter");
 					class_desc->pop(); // color
 				}
 
-				class_desc->push_color(symbol_color);
+				class_desc->push_color(theme_cache.symbol_color);
 				class_desc->add_text("]");
 				class_desc->pop(); // color
 			}
 
-			class_desc->pop(); // font
+			_pop_code_font();
 			class_desc->pop(); // cell
 
 			// Script doc doesn't have setter, getter.
@@ -1462,8 +1627,9 @@ void EditorHelp::_update_doc() {
 					class_desc->pop(); // cell
 
 					class_desc->push_cell();
-					class_desc->push_font(doc_code_font);
-					class_desc->push_color(text_color);
+					_push_code_font();
+					class_desc->push_color(theme_cache.text_color);
+
 					if (method_map[cd.properties[i].setter].arguments.size() > 1) {
 						// Setters with additional arguments are exposed in the method list, so we link them here for quick access.
 						class_desc->push_meta("@method " + cd.properties[i].setter);
@@ -1472,12 +1638,14 @@ void EditorHelp::_update_doc() {
 					} else {
 						class_desc->add_text(cd.properties[i].setter + TTR("(value)"));
 					}
+
 					class_desc->pop(); // color
-					class_desc->push_color(comment_color);
+					class_desc->push_color(theme_cache.comment_color);
 					class_desc->add_text(" setter");
 					class_desc->pop(); // color
-					class_desc->pop(); // font
+					_pop_code_font();
 					class_desc->pop(); // cell
+
 					method_line[cd.properties[i].setter] = property_line[cd.properties[i].name];
 				}
 
@@ -1486,8 +1654,9 @@ void EditorHelp::_update_doc() {
 					class_desc->pop(); // cell
 
 					class_desc->push_cell();
-					class_desc->push_font(doc_code_font);
-					class_desc->push_color(text_color);
+					_push_code_font();
+					class_desc->push_color(theme_cache.text_color);
+
 					if (method_map[cd.properties[i].getter].arguments.size() > 0) {
 						// Getters with additional arguments are exposed in the method list, so we link them here for quick access.
 						class_desc->push_meta("@method " + cd.properties[i].getter);
@@ -1496,12 +1665,14 @@ void EditorHelp::_update_doc() {
 					} else {
 						class_desc->add_text(cd.properties[i].getter + "()");
 					}
-					class_desc->pop(); //color
-					class_desc->push_color(comment_color);
+
+					class_desc->pop(); // color
+					class_desc->push_color(theme_cache.comment_color);
 					class_desc->add_text(" getter");
-					class_desc->pop(); //color
-					class_desc->pop(); //font
-					class_desc->pop(); //cell
+					class_desc->pop(); // color
+					_pop_code_font();
+					class_desc->pop(); // cell
+
 					method_line[cd.properties[i].getter] = property_line[cd.properties[i].name];
 				}
 			}
@@ -1511,15 +1682,15 @@ void EditorHelp::_update_doc() {
 			class_desc->add_newline();
 			class_desc->add_newline();
 
-			class_desc->push_color(text_color);
-			class_desc->push_font(doc_font);
+			class_desc->push_color(theme_cache.text_color);
+			_push_normal_font();
 			class_desc->push_indent(1);
 			if (!cd.properties[i].description.strip_edges().is_empty()) {
 				_add_text(DTR(cd.properties[i].description));
 			} else {
 				class_desc->add_image(get_theme_icon(SNAME("Error"), SNAME("EditorIcons")));
 				class_desc->add_text(" ");
-				class_desc->push_color(comment_color);
+				class_desc->push_color(theme_cache.comment_color);
 				if (cd.is_script_doc) {
 					class_desc->append_text(TTR("There is currently no description for this property."));
 				} else {
@@ -1528,8 +1699,9 @@ void EditorHelp::_update_doc() {
 				class_desc->pop();
 			}
 			class_desc->pop();
+			_pop_normal_font();
 			class_desc->pop();
-			class_desc->pop();
+
 			class_desc->add_newline();
 			class_desc->add_newline();
 			class_desc->add_newline();
@@ -1537,34 +1709,36 @@ void EditorHelp::_update_doc() {
 	}
 
 	// Constructor descriptions
-	if (constructor_descriptions) {
+	if (!cd.constructors.is_empty()) {
 		section_line.push_back(Pair<String, int>(TTR("Constructor Descriptions"), class_desc->get_paragraph_count() - 2));
-		class_desc->push_color(title_color);
-		class_desc->push_font(doc_title_font);
-		class_desc->push_font_size(doc_title_font_size);
+		_push_title_font();
 		class_desc->add_text(TTR("Constructor Descriptions"));
+		_pop_title_font();
+
 		_update_method_descriptions(cd, cd.constructors, "constructor");
 	}
 
 	// Method descriptions
-	if (method_descriptions) {
+	if (!methods.is_empty()) {
 		section_line.push_back(Pair<String, int>(TTR("Method Descriptions"), class_desc->get_paragraph_count() - 2));
-		class_desc->push_color(title_color);
-		class_desc->push_font(doc_title_font);
-		class_desc->push_font_size(doc_title_font_size);
+		_push_title_font();
 		class_desc->add_text(TTR("Method Descriptions"));
+		_pop_title_font();
+
 		_update_method_descriptions(cd, methods, "method");
 	}
 
 	// Operator descriptions
-	if (operator_descriptions) {
+	if (!cd.operators.is_empty()) {
 		section_line.push_back(Pair<String, int>(TTR("Operator Descriptions"), class_desc->get_paragraph_count() - 2));
-		class_desc->push_color(title_color);
-		class_desc->push_font(doc_title_font);
-		class_desc->push_font_size(doc_title_font_size);
+		_push_title_font();
 		class_desc->add_text(TTR("Operator Descriptions"));
+		_pop_title_font();
+
 		_update_method_descriptions(cd, cd.operators, "operator");
 	}
+
+	// Free the scroll.
 	scroll_locked = false;
 }
 
@@ -1645,19 +1819,32 @@ void EditorHelp::_help_callback(const String &p_topic) {
 	}
 }
 
-static void _add_text_to_rt(const String &p_bbcode, RichTextLabel *p_rt) {
+static void _add_text_to_rt(const String &p_bbcode, RichTextLabel *p_rt, Control *p_owner_node) {
 	DocTools *doc = EditorHelp::get_doc_data();
 	String base_path;
 
-	Ref<Font> doc_font = p_rt->get_theme_font(SNAME("doc"), SNAME("EditorFonts"));
-	Ref<Font> doc_bold_font = p_rt->get_theme_font(SNAME("doc_bold"), SNAME("EditorFonts"));
-	Ref<Font> doc_italic_font = p_rt->get_theme_font(SNAME("doc_italic"), SNAME("EditorFonts"));
-	Ref<Font> doc_code_font = p_rt->get_theme_font(SNAME("doc_source"), SNAME("EditorFonts"));
-	Ref<Font> doc_kbd_font = p_rt->get_theme_font(SNAME("doc_keyboard"), SNAME("EditorFonts"));
+	Ref<Font> doc_font = p_owner_node->get_theme_font(SNAME("doc"), SNAME("EditorFonts"));
+	Ref<Font> doc_bold_font = p_owner_node->get_theme_font(SNAME("doc_bold"), SNAME("EditorFonts"));
+	Ref<Font> doc_italic_font = p_owner_node->get_theme_font(SNAME("doc_italic"), SNAME("EditorFonts"));
+	Ref<Font> doc_code_font = p_owner_node->get_theme_font(SNAME("doc_source"), SNAME("EditorFonts"));
+	Ref<Font> doc_kbd_font = p_owner_node->get_theme_font(SNAME("doc_keyboard"), SNAME("EditorFonts"));
 
-	Color link_color = p_rt->get_theme_color(SNAME("link_color"), SNAME("EditorHelp"));
-	Color code_color = p_rt->get_theme_color(SNAME("code_color"), SNAME("EditorHelp"));
-	Color kbd_color = p_rt->get_theme_color(SNAME("kbd_color"), SNAME("EditorHelp"));
+	int doc_code_font_size = p_owner_node->get_theme_font_size(SNAME("doc_source_size"), SNAME("EditorFonts"));
+	int doc_kbd_font_size = p_owner_node->get_theme_font_size(SNAME("doc_keyboard_size"), SNAME("EditorFonts"));
+
+	const Color type_color = p_owner_node->get_theme_color(SNAME("type_color"), SNAME("EditorHelp"));
+	const Color code_color = p_owner_node->get_theme_color(SNAME("code_color"), SNAME("EditorHelp"));
+	const Color kbd_color = p_owner_node->get_theme_color(SNAME("kbd_color"), SNAME("EditorHelp"));
+	const Color code_dark_color = Color(code_color, 0.8);
+
+	const Color link_color = p_owner_node->get_theme_color(SNAME("link_color"), SNAME("EditorHelp"));
+	const Color link_method_color = p_owner_node->get_theme_color(SNAME("accent_color"), SNAME("Editor"));
+	const Color link_property_color = link_color.lerp(p_owner_node->get_theme_color(SNAME("accent_color"), SNAME("Editor")), 0.25);
+	const Color link_annotation_color = link_color.lerp(p_owner_node->get_theme_color(SNAME("accent_color"), SNAME("Editor")), 0.5);
+
+	const Color code_bg_color = p_owner_node->get_theme_color(SNAME("code_bg_color"), SNAME("EditorHelp"));
+	const Color kbd_bg_color = p_owner_node->get_theme_color(SNAME("kbd_bg_color"), SNAME("EditorHelp"));
+	const Color param_bg_color = p_owner_node->get_theme_color(SNAME("param_bg_color"), SNAME("EditorHelp"));
 
 	String bbcode = p_bbcode.dedent().replace("\t", "").replace("\r", "").strip_edges();
 
@@ -1768,10 +1955,12 @@ static void _add_text_to_rt(const String &p_bbcode, RichTextLabel *p_rt) {
 			if (tag != "/img") {
 				p_rt->pop();
 				if (code_tag) {
+					p_rt->pop(); // font size
 					// Pop both color and background color.
 					p_rt->pop();
 					p_rt->pop();
 				} else if (codeblock_tag) {
+					p_rt->pop(); // font size
 					// Pop color, cell and table.
 					p_rt->pop();
 					p_rt->pop();
@@ -1785,78 +1974,118 @@ static void _add_text_to_rt(const String &p_bbcode, RichTextLabel *p_rt) {
 			p_rt->add_text("[");
 			pos = brk_pos + 1;
 
-		} else if (tag.begins_with("method ") || tag.begins_with("member ") || tag.begins_with("signal ") || tag.begins_with("enum ") || tag.begins_with("constant ") || tag.begins_with("theme_item ")) {
+		} else if (tag.begins_with("method ") || tag.begins_with("member ") || tag.begins_with("signal ") || tag.begins_with("enum ") || tag.begins_with("constant ") || tag.begins_with("annotation ") || tag.begins_with("theme_item ")) {
 			const int tag_end = tag.find(" ");
 			const String link_tag = tag.substr(0, tag_end);
 			const String link_target = tag.substr(tag_end + 1, tag.length()).lstrip(" ");
 
-			// Use monospace font with translucent colored background color to make clickable references
+			// Use monospace font to make clickable references
 			// easier to distinguish from inline code and other text.
 			p_rt->push_font(doc_code_font);
-			p_rt->push_color(link_color);
-			p_rt->push_bgcolor(code_color * Color(1, 1, 1, 0.15));
+			p_rt->push_font_size(doc_code_font_size);
+
+			Color target_color = link_color;
+			if (link_tag == "method") {
+				target_color = link_method_color;
+			} else if (link_tag == "member" || link_tag == "signal" || link_tag == "theme property") {
+				target_color = link_property_color;
+			} else if (link_tag == "annotation") {
+				target_color = link_annotation_color;
+			}
+			p_rt->push_color(target_color);
 			p_rt->push_meta("@" + link_tag + " " + link_target);
-			p_rt->add_text(link_target + (tag.begins_with("method ") ? "()" : ""));
+			p_rt->add_text(link_target + (link_tag == "method" ? "()" : ""));
 			p_rt->pop();
 			p_rt->pop();
+
+			p_rt->pop(); // font size
+			p_rt->pop(); // font
+			pos = brk_end + 1;
+
+		} else if (tag.begins_with("param ")) {
+			const int tag_end = tag.find(" ");
+			const String param_name = tag.substr(tag_end + 1, tag.length()).lstrip(" ");
+
+			// Use monospace font with translucent background color to make code easier to distinguish from other text.
+			p_rt->push_font(doc_code_font);
+			p_rt->push_font_size(doc_code_font_size);
+
+			p_rt->push_bgcolor(param_bg_color);
+			p_rt->push_color(code_color);
+			p_rt->add_text(param_name);
 			p_rt->pop();
 			p_rt->pop();
+
+			p_rt->pop(); // font size
+			p_rt->pop(); // font
 			pos = brk_end + 1;
 
 		} else if (doc->class_list.has(tag)) {
 			// Class reference tag such as [Node2D] or [SceneTree].
-			// Use monospace font with translucent colored background color to make clickable references
+			// Use monospace font to make clickable references
 			// easier to distinguish from inline code and other text.
 			p_rt->push_font(doc_code_font);
-			p_rt->push_color(link_color);
-			p_rt->push_bgcolor(code_color * Color(1, 1, 1, 0.15));
+			p_rt->push_font_size(doc_code_font_size);
+
+			p_rt->push_color(type_color);
 			p_rt->push_meta("#" + tag);
 			p_rt->add_text(tag);
 			p_rt->pop();
 			p_rt->pop();
-			p_rt->pop();
-			p_rt->pop();
+
+			p_rt->pop(); // font size
+			p_rt->pop(); // font
 			pos = brk_end + 1;
 
 		} else if (tag == "b") {
 			// Use bold font.
 			p_rt->push_font(doc_bold_font);
+
 			pos = brk_end + 1;
 			tag_stack.push_front(tag);
 		} else if (tag == "i") {
 			// Use italics font.
 			p_rt->push_font(doc_italic_font);
+
 			pos = brk_end + 1;
 			tag_stack.push_front(tag);
 		} else if (tag == "code") {
-			// Use monospace font with translucent background color to make code easier to distinguish from other text.
+			// Use monospace font with darkened background color to make code easier to distinguish from other text.
 			p_rt->push_font(doc_code_font);
-			p_rt->push_bgcolor(Color(0.5, 0.5, 0.5, 0.15));
-			p_rt->push_color(code_color);
+			p_rt->push_font_size(doc_code_font_size);
+			p_rt->push_bgcolor(code_bg_color);
+			p_rt->push_color(code_color.lerp(p_owner_node->get_theme_color(SNAME("error_color"), SNAME("Editor")), 0.6));
+
 			code_tag = true;
 			pos = brk_end + 1;
 			tag_stack.push_front(tag);
 		} else if (tag == "codeblock") {
-			// Use monospace font with translucent background color to make code easier to distinguish from other text.
+			// Use monospace font with darkened background color to make code easier to distinguish from other text.
 			// Use a single-column table with cell row background color instead of `[bgcolor]`.
 			// This makes the background color highlight cover the entire block, rather than individual lines.
 			p_rt->push_font(doc_code_font);
+			p_rt->push_font_size(doc_code_font_size);
+
 			p_rt->push_table(1);
 			p_rt->push_cell();
-			p_rt->set_cell_row_background_color(Color(0.5, 0.5, 0.5, 0.15), Color(0.5, 0.5, 0.5, 0.15));
+			p_rt->set_cell_row_background_color(code_bg_color, Color(code_bg_color, 0.99));
 			p_rt->set_cell_padding(Rect2(10 * EDSCALE, 10 * EDSCALE, 10 * EDSCALE, 10 * EDSCALE));
-			p_rt->push_color(code_color);
+			p_rt->push_color(code_dark_color);
+
 			codeblock_tag = true;
 			pos = brk_end + 1;
 			tag_stack.push_front(tag);
 		} else if (tag == "kbd") {
 			// Use keyboard font with custom color and background color.
 			p_rt->push_font(doc_kbd_font);
-			p_rt->push_bgcolor(Color(0.5, 0.5, 0.5, 0.15));
+			p_rt->push_font_size(doc_kbd_font_size);
+			p_rt->push_bgcolor(kbd_bg_color);
 			p_rt->push_color(kbd_color);
+
 			code_tag = true; // Though not strictly a code tag, logic is similar.
 			pos = brk_end + 1;
 			tag_stack.push_front(tag);
+
 		} else if (tag == "center") {
 			// Align to center.
 			p_rt->push_paragraph(HORIZONTAL_ALIGNMENT_CENTER, Control::TEXT_DIRECTION_AUTO, "");
@@ -1890,6 +2119,7 @@ static void _add_text_to_rt(const String &p_bbcode, RichTextLabel *p_rt) {
 		} else if (tag.begins_with("url=")) {
 			String url = tag.substr(4, tag.length());
 			p_rt->push_meta(url);
+
 			pos = brk_end + 1;
 			tag_stack.push_front("url");
 		} else if (tag == "img") {
@@ -1899,7 +2129,7 @@ static void _add_text_to_rt(const String &p_bbcode, RichTextLabel *p_rt) {
 			}
 			String image = bbcode.substr(brk_end + 1, end - brk_end - 1);
 
-			Ref<Texture2D> texture = ResourceLoader::load(base_path.plus_file(image), "Texture2D");
+			Ref<Texture2D> texture = ResourceLoader::load(base_path.path_join(image), "Texture2D");
 			if (texture.is_valid()) {
 				p_rt->add_image(texture);
 			}
@@ -1910,13 +2140,14 @@ static void _add_text_to_rt(const String &p_bbcode, RichTextLabel *p_rt) {
 			String col = tag.substr(6, tag.length());
 			Color color = Color::from_string(col, Color());
 			p_rt->push_color(color);
+
 			pos = brk_end + 1;
 			tag_stack.push_front("color");
 
 		} else if (tag.begins_with("font=")) {
 			String fnt = tag.substr(5, tag.length());
 
-			Ref<Font> font = ResourceLoader::load(base_path.plus_file(fnt), "Font");
+			Ref<Font> font = ResourceLoader::load(base_path.path_join(fnt), "Font");
 			if (font.is_valid()) {
 				p_rt->push_font(font);
 			} else {
@@ -1934,7 +2165,7 @@ static void _add_text_to_rt(const String &p_bbcode, RichTextLabel *p_rt) {
 }
 
 void EditorHelp::_add_text(const String &p_bbcode) {
-	_add_text_to_rt(p_bbcode, class_desc);
+	_add_text_to_rt(p_bbcode, class_desc, this);
 }
 
 Thread EditorHelp::thread;
@@ -1972,6 +2203,11 @@ void EditorHelp::_toggle_scripts_pressed() {
 
 void EditorHelp::_notification(int p_what) {
 	switch (p_what) {
+		case NOTIFICATION_POSTINITIALIZE: {
+			// Requires theme to be up to date.
+			_class_desc_resized(false);
+		} break;
+
 		case NOTIFICATION_READY:
 		case EditorSettings::NOTIFICATION_EDITOR_SETTINGS_CHANGED: {
 			_wait_for_thread();
@@ -2063,7 +2299,7 @@ void EditorHelp::update_toggle_scripts_button() {
 	} else {
 		toggle_scripts_button->set_icon(get_theme_icon(ScriptEditor::get_singleton()->is_scripts_panel_toggled() ? SNAME("Back") : SNAME("Forward"), SNAME("EditorIcons")));
 	}
-	toggle_scripts_button->set_tooltip(vformat("%s (%s)", TTR("Toggle Scripts Panel"), ED_GET_SHORTCUT("script_editor/toggle_scripts_panel")->get_as_text()));
+	toggle_scripts_button->set_tooltip_text(vformat("%s (%s)", TTR("Toggle Scripts Panel"), ED_GET_SHORTCUT("script_editor/toggle_scripts_panel")->get_as_text()));
 }
 
 void EditorHelp::_bind_methods() {
@@ -2084,13 +2320,11 @@ EditorHelp::EditorHelp() {
 	add_child(class_desc);
 	class_desc->set_threaded(true);
 	class_desc->set_v_size_flags(SIZE_EXPAND_FILL);
-	class_desc->add_theme_color_override("selection_color", get_theme_color(SNAME("accent_color"), SNAME("Editor")) * Color(1, 1, 1, 0.4));
 
 	class_desc->connect("finished", callable_mp(this, &EditorHelp::_class_desc_finished));
 	class_desc->connect("meta_clicked", callable_mp(this, &EditorHelp::_class_desc_select));
 	class_desc->connect("gui_input", callable_mp(this, &EditorHelp::_class_desc_input));
-	class_desc->connect("resized", callable_mp(this, &EditorHelp::_class_desc_resized), varray(false));
-	_class_desc_resized(false);
+	class_desc->connect("resized", callable_mp(this, &EditorHelp::_class_desc_resized).bind(false));
 
 	// Added second so it opens at the bottom so it won't offset the entire widget.
 	find_bar = memnew(FindBar);
@@ -2160,11 +2394,10 @@ void EditorHelpBit::_bind_methods() {
 
 void EditorHelpBit::_notification(int p_what) {
 	switch (p_what) {
-		case NOTIFICATION_ENTER_TREE:
 		case NOTIFICATION_THEME_CHANGED: {
 			rich_text->add_theme_color_override("selection_color", get_theme_color(SNAME("selection_color"), SNAME("EditorHelp")));
 			rich_text->clear();
-			_add_text_to_rt(text, rich_text);
+			_add_text_to_rt(text, rich_text, this);
 			rich_text->reset_size(); // Force recalculating size after parsing bbcode.
 		} break;
 	}
@@ -2173,15 +2406,14 @@ void EditorHelpBit::_notification(int p_what) {
 void EditorHelpBit::set_text(const String &p_text) {
 	text = p_text;
 	rich_text->clear();
-	_add_text_to_rt(text, rich_text);
+	_add_text_to_rt(text, rich_text, this);
 }
 
 EditorHelpBit::EditorHelpBit() {
 	rich_text = memnew(RichTextLabel);
 	add_child(rich_text);
 	rich_text->connect("meta_clicked", callable_mp(this, &EditorHelpBit::_meta_clicked));
-	rich_text->set_override_selected_font_color(false);
-	rich_text->set_fit_content_height(true);
+	rich_text->set_fit_content(true);
 	set_custom_minimum_size(Size2(0, 50 * EDSCALE));
 }
 
@@ -2242,14 +2474,13 @@ void FindBar::popup_search() {
 
 void FindBar::_notification(int p_what) {
 	switch (p_what) {
-		case NOTIFICATION_ENTER_TREE:
 		case NOTIFICATION_THEME_CHANGED: {
 			find_prev->set_icon(get_theme_icon(SNAME("MoveUp"), SNAME("EditorIcons")));
 			find_next->set_icon(get_theme_icon(SNAME("MoveDown"), SNAME("EditorIcons")));
-			hide_button->set_normal_texture(get_theme_icon(SNAME("Close"), SNAME("EditorIcons")));
-			hide_button->set_hover_texture(get_theme_icon(SNAME("Close"), SNAME("EditorIcons")));
-			hide_button->set_pressed_texture(get_theme_icon(SNAME("Close"), SNAME("EditorIcons")));
-			hide_button->set_custom_minimum_size(hide_button->get_normal_texture()->get_size());
+			hide_button->set_texture_normal(get_theme_icon(SNAME("Close"), SNAME("EditorIcons")));
+			hide_button->set_texture_hover(get_theme_icon(SNAME("Close"), SNAME("EditorIcons")));
+			hide_button->set_texture_pressed(get_theme_icon(SNAME("Close"), SNAME("EditorIcons")));
+			hide_button->set_custom_minimum_size(hide_button->get_texture_normal()->get_size());
 			matches_label->add_theme_color_override("font_color", results_count > 0 ? get_theme_color(SNAME("font_color"), SNAME("Label")) : get_theme_color(SNAME("error_color"), SNAME("Editor")));
 		} break;
 
@@ -2257,10 +2488,6 @@ void FindBar::_notification(int p_what) {
 			set_process_unhandled_input(is_visible_in_tree());
 		} break;
 	}
-}
-
-void FindBar::_bind_methods() {
-	ADD_SIGNAL(MethodInfo("search"));
 }
 
 void FindBar::set_rich_text_label(RichTextLabel *p_rich_text_label) {

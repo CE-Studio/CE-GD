@@ -1,37 +1,38 @@
-/*************************************************************************/
-/*  camera_3d.cpp                                                        */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  camera_3d.cpp                                                         */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "camera_3d.h"
 
 #include "collision_object_3d.h"
-#include "core/math/camera_matrix.h"
+#include "core/core_string_names.h"
+#include "core/math/projection.h"
 #include "scene/main/viewport.h"
 
 void Camera3D::_update_audio_listener_state() {
@@ -72,6 +73,15 @@ void Camera3D::_validate_property(PropertyInfo &p_property) const {
 		}
 	}
 
+	if (attributes.is_valid()) {
+		const CameraAttributesPhysical *physical_attributes = Object::cast_to<CameraAttributesPhysical>(attributes.ptr());
+		if (physical_attributes) {
+			if (p_property.name == "near" || p_property.name == "far" || p_property.name == "fov" || p_property.name == "keep_aspect") {
+				p_property.usage = PROPERTY_USAGE_READ_ONLY | PROPERTY_USAGE_INTERNAL | PROPERTY_USAGE_EDITOR;
+			}
+		}
+	}
+
 	Node3D::_validate_property(p_property);
 }
 
@@ -102,6 +112,12 @@ void Camera3D::_notification(int p_what) {
 			if (current || first_camera) {
 				viewport->_camera_3d_set(this);
 			}
+
+#ifdef TOOLS_ENABLED
+			if (Engine::get_singleton()->is_editor_hint()) {
+				viewport->connect(SNAME("size_changed"), callable_mp((Node3D *)this, &Camera3D::update_gizmos));
+			}
+#endif
 		} break;
 
 		case NOTIFICATION_TRANSFORM_CHANGED: {
@@ -123,6 +139,11 @@ void Camera3D::_notification(int p_what) {
 			}
 
 			if (viewport) {
+#ifdef TOOLS_ENABLED
+				if (Engine::get_singleton()->is_editor_hint()) {
+					viewport->disconnect(SNAME("size_changed"), callable_mp((Node3D *)this, &Camera3D::update_gizmos));
+				}
+#endif
 				viewport->_camera_3d_remove(this);
 				viewport = nullptr;
 			}
@@ -197,7 +218,7 @@ void Camera3D::set_frustum(real_t p_size, Vector2 p_offset, real_t p_z_near, rea
 	update_gizmos();
 }
 
-void Camera3D::set_projection(Camera3D::Projection p_mode) {
+void Camera3D::set_projection(ProjectionType p_mode) {
 	if (p_mode == PROJECTION_PERSPECTIVE || p_mode == PROJECTION_ORTHOGONAL || p_mode == PROJECTION_FRUSTUM) {
 		mode = p_mode;
 		_update_camera_mode();
@@ -265,7 +286,7 @@ Vector3 Camera3D::project_local_ray_normal(const Point2 &p_pos) const {
 	if (mode == PROJECTION_ORTHOGONAL) {
 		ray = Vector3(0, 0, -1);
 	} else {
-		CameraMatrix cm;
+		Projection cm;
 		cm.set_perspective(fov, viewport_size.aspect(), near, far, keep_aspect == KEEP_WIDTH);
 		Vector2 screen_he = cm.get_viewport_half_extents();
 		ray = Vector3(((cpos.x / viewport_size.width) * 2.0 - 1.0) * screen_he.x, ((1.0 - (cpos.y / viewport_size.height)) * 2.0 - 1.0) * screen_he.y, -near).normalized();
@@ -314,7 +335,7 @@ Vector<Vector3> Camera3D::get_near_plane_points() const {
 
 	Size2 viewport_size = get_viewport()->get_visible_rect().size;
 
-	CameraMatrix cm;
+	Projection cm;
 
 	if (mode == PROJECTION_ORTHOGONAL) {
 		cm.set_orthogonal(size, viewport_size.aspect(), near, far, keep_aspect == KEEP_WIDTH);
@@ -340,7 +361,7 @@ Point2 Camera3D::unproject_position(const Vector3 &p_pos) const {
 
 	Size2 viewport_size = get_viewport()->get_visible_rect().size;
 
-	CameraMatrix cm;
+	Projection cm;
 
 	if (mode == PROJECTION_ORTHOGONAL) {
 		cm.set_orthogonal(size, viewport_size.aspect(), near, far, keep_aspect == KEEP_WIDTH);
@@ -368,7 +389,7 @@ Vector3 Camera3D::project_position(const Point2 &p_point, real_t p_z_depth) cons
 	}
 	Size2 viewport_size = get_viewport()->get_visible_rect().size;
 
-	CameraMatrix cm;
+	Projection cm;
 
 	if (mode == PROJECTION_ORTHOGONAL) {
 		cm.set_orthogonal(size, viewport_size.aspect(), p_z_depth, far, keep_aspect == KEEP_WIDTH);
@@ -402,18 +423,44 @@ Ref<Environment> Camera3D::get_environment() const {
 	return environment;
 }
 
-void Camera3D::set_effects(const Ref<CameraEffects> &p_effects) {
-	effects = p_effects;
-	if (effects.is_valid()) {
-		RS::get_singleton()->camera_set_camera_effects(camera, effects->get_rid());
-	} else {
-		RS::get_singleton()->camera_set_camera_effects(camera, RID());
+void Camera3D::set_attributes(const Ref<CameraAttributes> &p_attributes) {
+	if (attributes.is_valid()) {
+		CameraAttributesPhysical *physical_attributes = Object::cast_to<CameraAttributesPhysical>(attributes.ptr());
+		if (physical_attributes) {
+			attributes->disconnect(CoreStringNames::get_singleton()->changed, callable_mp(this, &Camera3D::_attributes_changed));
+		}
 	}
-	_update_camera_mode();
+
+	attributes = p_attributes;
+
+	if (attributes.is_valid()) {
+		CameraAttributesPhysical *physical_attributes = Object::cast_to<CameraAttributesPhysical>(attributes.ptr());
+		if (physical_attributes) {
+			attributes->connect(CoreStringNames::get_singleton()->changed, callable_mp(this, &Camera3D::_attributes_changed));
+			_attributes_changed();
+		}
+
+		RS::get_singleton()->camera_set_camera_attributes(camera, attributes->get_rid());
+	} else {
+		RS::get_singleton()->camera_set_camera_attributes(camera, RID());
+	}
+
+	notify_property_list_changed();
 }
 
-Ref<CameraEffects> Camera3D::get_effects() const {
-	return effects;
+Ref<CameraAttributes> Camera3D::get_attributes() const {
+	return attributes;
+}
+
+void Camera3D::_attributes_changed() {
+	CameraAttributesPhysical *physical_attributes = Object::cast_to<CameraAttributesPhysical>(attributes.ptr());
+	ERR_FAIL_COND(!physical_attributes);
+
+	fov = physical_attributes->get_fov();
+	near = physical_attributes->get_near();
+	far = physical_attributes->get_far();
+	keep_aspect = KEEP_HEIGHT;
+	_update_camera_mode();
 }
 
 void Camera3D::set_keep_aspect_mode(KeepAspect p_aspect) {
@@ -481,13 +528,13 @@ void Camera3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_cull_mask"), &Camera3D::get_cull_mask);
 	ClassDB::bind_method(D_METHOD("set_environment", "env"), &Camera3D::set_environment);
 	ClassDB::bind_method(D_METHOD("get_environment"), &Camera3D::get_environment);
-	ClassDB::bind_method(D_METHOD("set_effects", "env"), &Camera3D::set_effects);
-	ClassDB::bind_method(D_METHOD("get_effects"), &Camera3D::get_effects);
+	ClassDB::bind_method(D_METHOD("set_attributes", "env"), &Camera3D::set_attributes);
+	ClassDB::bind_method(D_METHOD("get_attributes"), &Camera3D::get_attributes);
 	ClassDB::bind_method(D_METHOD("set_keep_aspect_mode", "mode"), &Camera3D::set_keep_aspect_mode);
 	ClassDB::bind_method(D_METHOD("get_keep_aspect_mode"), &Camera3D::get_keep_aspect_mode);
 	ClassDB::bind_method(D_METHOD("set_doppler_tracking", "mode"), &Camera3D::set_doppler_tracking);
 	ClassDB::bind_method(D_METHOD("get_doppler_tracking"), &Camera3D::get_doppler_tracking);
-	ClassDB::bind_method(D_METHOD("get_frustum"), &Camera3D::get_frustum);
+	ClassDB::bind_method(D_METHOD("get_frustum"), &Camera3D::_get_frustum);
 	ClassDB::bind_method(D_METHOD("is_position_in_frustum", "world_point"), &Camera3D::is_position_in_frustum);
 	ClassDB::bind_method(D_METHOD("get_camera_rid"), &Camera3D::get_camera);
 	ClassDB::bind_method(D_METHOD("get_pyramid_shape_rid"), &Camera3D::get_pyramid_shape_rid);
@@ -500,14 +547,14 @@ void Camera3D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "keep_aspect", PROPERTY_HINT_ENUM, "Keep Width,Keep Height"), "set_keep_aspect_mode", "get_keep_aspect_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "cull_mask", PROPERTY_HINT_LAYERS_3D_RENDER), "set_cull_mask", "get_cull_mask");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "environment", PROPERTY_HINT_RESOURCE_TYPE, "Environment"), "set_environment", "get_environment");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "effects", PROPERTY_HINT_RESOURCE_TYPE, "CameraEffects"), "set_effects", "get_effects");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "attributes", PROPERTY_HINT_RESOURCE_TYPE, "CameraAttributesPractical,CameraAttributesPhysical"), "set_attributes", "get_attributes");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "h_offset", PROPERTY_HINT_NONE, "suffix:m"), "set_h_offset", "get_h_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "v_offset", PROPERTY_HINT_NONE, "suffix:m"), "set_v_offset", "get_v_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "doppler_tracking", PROPERTY_HINT_ENUM, "Disabled,Idle,Physics"), "set_doppler_tracking", "get_doppler_tracking");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "projection", PROPERTY_HINT_ENUM, "Perspective,Orthogonal,Frustum"), "set_projection", "get_projection");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "current"), "set_current", "is_current");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "fov", PROPERTY_HINT_RANGE, "1,179,0.1,degrees"), "set_fov", "get_fov");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "size", PROPERTY_HINT_RANGE, "0.001,16384,0.01,suffix:m"), "set_size", "get_size");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "size", PROPERTY_HINT_RANGE, "0.001,16384,0.001,or_greater,suffix:m"), "set_size", "get_size");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "frustum_offset", PROPERTY_HINT_NONE, "suffix:m"), "set_frustum_offset", "get_frustum_offset");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "near", PROPERTY_HINT_RANGE, "0.001,10,0.001,or_greater,exp,suffix:m"), "set_near", "get_near");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "far", PROPERTY_HINT_RANGE, "0.01,4000,0.01,or_greater,exp,suffix:m"), "set_far", "get_far");
@@ -544,7 +591,7 @@ real_t Camera3D::get_far() const {
 	return far;
 }
 
-Camera3D::Projection Camera3D::get_projection() const {
+Camera3D::ProjectionType Camera3D::get_projection() const {
 	return mode;
 }
 
@@ -555,7 +602,7 @@ void Camera3D::set_fov(real_t p_fov) {
 }
 
 void Camera3D::set_size(real_t p_size) {
-	ERR_FAIL_COND(p_size < 0.001 || p_size > 16384);
+	ERR_FAIL_COND(p_size <= CMP_EPSILON);
 	size = p_size;
 	_update_camera_mode();
 }
@@ -607,7 +654,7 @@ Vector<Plane> Camera3D::get_frustum() const {
 	ERR_FAIL_COND_V(!is_inside_world(), Vector<Plane>());
 
 	Size2 viewport_size = get_viewport()->get_visible_rect().size;
-	CameraMatrix cm;
+	Projection cm;
 	if (mode == PROJECTION_PERSPECTIVE) {
 		cm.set_perspective(fov, viewport_size.aspect(), near, far, keep_aspect == KEEP_WIDTH);
 	} else {
@@ -615,6 +662,11 @@ Vector<Plane> Camera3D::get_frustum() const {
 	}
 
 	return cm.get_projection_planes(get_camera_transform());
+}
+
+TypedArray<Plane> Camera3D::_get_frustum() const {
+	Variant ret = get_frustum();
+	return ret;
 }
 
 bool Camera3D::is_position_in_frustum(const Vector3 &p_position) const {
@@ -692,8 +744,10 @@ Camera3D::Camera3D() {
 }
 
 Camera3D::~Camera3D() {
+	ERR_FAIL_NULL(RenderingServer::get_singleton());
 	RenderingServer::get_singleton()->free(camera);
 	if (pyramid_shape.is_valid()) {
+		ERR_FAIL_NULL(PhysicsServer3D::get_singleton());
 		PhysicsServer3D::get_singleton()->free(pyramid_shape);
 	}
 }

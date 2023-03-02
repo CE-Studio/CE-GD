@@ -1,42 +1,42 @@
-/*************************************************************************/
-/*  editor_data.h                                                        */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  editor_data.h                                                         */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef EDITOR_DATA_H
 #define EDITOR_DATA_H
 
-#include "core/object/undo_redo.h"
 #include "core/templates/list.h"
 #include "scene/resources/texture.h"
 
 class ConfigFile;
 class EditorPlugin;
+class EditorUndoRedoManager;
 
 /**
  * Stores the history of objects which have been selected for editing in the Editor & the Inspector.
@@ -80,7 +80,6 @@ public:
 
 	// Gets an object from the history. The most recent object would be the object with p_obj = get_history_len() - 1.
 	ObjectID get_history_obj(int p_obj) const;
-	bool is_history_obj_inspector_only(int p_obj) const;
 
 	bool next();
 	bool previous();
@@ -118,8 +117,9 @@ public:
 		Vector<EditorSelectionHistory::HistoryElement> history_stored;
 		int history_current = 0;
 		Dictionary custom_state;
-		uint64_t version = 0;
 		NodePath live_edit_root;
+		int history_id = 0;
+		uint64_t last_checked_version = 0;
 	};
 
 private:
@@ -132,12 +132,13 @@ private:
 	HashMap<String, Vector<CustomType>> custom_types;
 
 	List<PropertyData> clipboard;
-	UndoRedo undo_redo;
+	EditorUndoRedoManager *undo_redo_manager;
 	Vector<Callable> undo_redo_callbacks;
 	HashMap<StringName, Callable> move_element_functions;
 
 	Vector<EditedScene> edited_scene;
-	int current_edited_scene;
+	int current_edited_scene = -1;
+	int last_created_scene = 1;
 
 	bool _find_updated_instances(Node *p_root, Node *p_node, HashSet<String> &checked_paths);
 
@@ -166,7 +167,6 @@ public:
 	int get_editor_plugin_count() const;
 	EditorPlugin *get_editor_plugin(int p_idx);
 
-	UndoRedo &get_undo_redo();
 	void add_undo_redo_inspector_hook_callback(Callable p_callable); // Callbacks should have this signature: void (Object* undo_redo, Object *modified_object, String property, Variant new_value)
 	void remove_undo_redo_inspector_hook_callback(Callable p_callable);
 	const Vector<Callable> get_undo_redo_inspector_hook_callback();
@@ -176,12 +176,14 @@ public:
 	Callable get_move_array_element_function(const StringName &p_class) const;
 
 	void save_editor_global_states();
-	void restore_editor_global_states();
 
 	void add_custom_type(const String &p_type, const String &p_inherits, const Ref<Script> &p_script, const Ref<Texture2D> &p_icon);
-	Variant instance_custom_type(const String &p_type, const String &p_inherits);
+	Variant instantiate_custom_type(const String &p_type, const String &p_inherits);
 	void remove_custom_type(const String &p_type);
 	const HashMap<String, Vector<CustomType>> &get_custom_types() const { return custom_types; }
+	const CustomType *get_custom_type_by_name(const String &p_name) const;
+	const CustomType *get_custom_type_by_path(const String &p_path) const;
+	bool is_type_recognized(const String &p_type) const;
 
 	void instantiate_object_properties(Object *p_object);
 
@@ -199,8 +201,6 @@ public:
 	String get_scene_type(int p_idx) const;
 	void set_scene_path(int p_idx, const String &p_path);
 	Ref<Script> get_scene_root_script(int p_idx) const;
-	void set_edited_scene_version(uint64_t version, int p_scene_idx = -1);
-	uint64_t get_scene_version(int p_idx) const;
 	void set_scene_modified_time(int p_idx, uint64_t p_time);
 	uint64_t get_scene_modified_time(int p_idx) const;
 	void clear_edited_scenes();
@@ -209,6 +209,13 @@ public:
 	bool check_and_update_scene(int p_idx);
 	void move_edited_scene_to_index(int p_idx);
 	bool call_build();
+
+	void set_scene_as_saved(int p_idx);
+	bool is_scene_changed(int p_idx);
+
+	int get_scene_history_id_from_path(const String &p_path) const;
+	int get_current_edited_scene_history_id() const;
+	int get_scene_history_id(int p_idx) const;
 
 	void set_plugin_window_layout(Ref<ConfigFile> p_layout);
 	void get_plugin_window_layout(Ref<ConfigFile> p_layout);
@@ -234,6 +241,7 @@ public:
 	void script_class_load_icon_paths();
 
 	EditorData();
+	~EditorData();
 };
 
 /**
@@ -263,7 +271,7 @@ class EditorSelection : public Object {
 	List<Node *> selected_node_list;
 
 	void _update_node_list();
-	Array _get_transformable_selected_nodes();
+	TypedArray<Node> _get_transformable_selected_nodes();
 	void _emit_change();
 
 protected:

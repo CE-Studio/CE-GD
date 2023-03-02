@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  area_2d.cpp                                                          */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  area_2d.cpp                                                           */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "area_2d.h"
 
@@ -51,13 +51,13 @@ bool Area2D::is_gravity_a_point() const {
 	return gravity_is_point;
 }
 
-void Area2D::set_gravity_point_distance_scale(real_t p_scale) {
-	gravity_distance_scale = p_scale;
-	PhysicsServer2D::get_singleton()->area_set_param(get_rid(), PhysicsServer2D::AREA_PARAM_GRAVITY_DISTANCE_SCALE, p_scale);
+void Area2D::set_gravity_point_unit_distance(real_t p_scale) {
+	gravity_point_unit_distance = p_scale;
+	PhysicsServer2D::get_singleton()->area_set_param(get_rid(), PhysicsServer2D::AREA_PARAM_GRAVITY_POINT_UNIT_DISTANCE, p_scale);
 }
 
-real_t Area2D::get_gravity_point_distance_scale() const {
-	return gravity_distance_scale;
+real_t Area2D::get_gravity_point_unit_distance() const {
+	return gravity_point_unit_distance;
 }
 
 void Area2D::set_gravity_point_center(const Vector2 &p_center) {
@@ -175,6 +175,7 @@ void Area2D::_body_inout(int p_status, const RID &p_body, ObjectID p_instance, i
 		return; //does not exist because it was likely removed from the tree
 	}
 
+	lock_callback();
 	locked = true;
 
 	if (body_in) {
@@ -184,8 +185,8 @@ void Area2D::_body_inout(int p_status, const RID &p_body, ObjectID p_instance, i
 			E->value.rc = 0;
 			E->value.in_tree = node && node->is_inside_tree();
 			if (node) {
-				node->connect(SceneStringNames::get_singleton()->tree_entered, callable_mp(this, &Area2D::_body_enter_tree), make_binds(objid));
-				node->connect(SceneStringNames::get_singleton()->tree_exiting, callable_mp(this, &Area2D::_body_exit_tree), make_binds(objid));
+				node->connect(SceneStringNames::get_singleton()->tree_entered, callable_mp(this, &Area2D::_body_enter_tree).bind(objid));
+				node->connect(SceneStringNames::get_singleton()->tree_exiting, callable_mp(this, &Area2D::_body_exit_tree).bind(objid));
 				if (E->value.in_tree) {
 					emit_signal(SceneStringNames::get_singleton()->body_entered, node);
 				}
@@ -224,6 +225,7 @@ void Area2D::_body_inout(int p_status, const RID &p_body, ObjectID p_instance, i
 	}
 
 	locked = false;
+	unlock_callback();
 }
 
 void Area2D::_area_enter_tree(ObjectID p_id) {
@@ -268,6 +270,8 @@ void Area2D::_area_inout(int p_status, const RID &p_area, ObjectID p_instance, i
 	if (!area_in && !E) {
 		return; //likely removed from the tree
 	}
+
+	lock_callback();
 	locked = true;
 
 	if (area_in) {
@@ -277,8 +281,8 @@ void Area2D::_area_inout(int p_status, const RID &p_area, ObjectID p_instance, i
 			E->value.rc = 0;
 			E->value.in_tree = node && node->is_inside_tree();
 			if (node) {
-				node->connect(SceneStringNames::get_singleton()->tree_entered, callable_mp(this, &Area2D::_area_enter_tree), make_binds(objid));
-				node->connect(SceneStringNames::get_singleton()->tree_exiting, callable_mp(this, &Area2D::_area_exit_tree), make_binds(objid));
+				node->connect(SceneStringNames::get_singleton()->tree_entered, callable_mp(this, &Area2D::_area_enter_tree).bind(objid));
+				node->connect(SceneStringNames::get_singleton()->tree_exiting, callable_mp(this, &Area2D::_area_exit_tree).bind(objid));
 				if (E->value.in_tree) {
 					emit_signal(SceneStringNames::get_singleton()->area_entered, node);
 				}
@@ -317,6 +321,7 @@ void Area2D::_area_inout(int p_status, const RID &p_area, ObjectID p_instance, i
 	}
 
 	locked = false;
+	unlock_callback();
 }
 
 void Area2D::_clear_monitoring() {
@@ -426,37 +431,47 @@ bool Area2D::is_monitorable() const {
 }
 
 TypedArray<Node2D> Area2D::get_overlapping_bodies() const {
-	ERR_FAIL_COND_V_MSG(!monitoring, Array(), "Can't find overlapping bodies when monitoring is off.");
 	TypedArray<Node2D> ret;
+	ERR_FAIL_COND_V_MSG(!monitoring, ret, "Can't find overlapping bodies when monitoring is off.");
 	ret.resize(body_map.size());
 	int idx = 0;
 	for (const KeyValue<ObjectID, BodyState> &E : body_map) {
 		Object *obj = ObjectDB::get_instance(E.key);
-		if (!obj) {
-			ret.resize(ret.size() - 1); //ops
-		} else {
-			ret[idx++] = obj;
+		if (obj) {
+			ret[idx] = obj;
+			idx++;
 		}
 	}
 
+	ret.resize(idx);
 	return ret;
 }
 
 TypedArray<Area2D> Area2D::get_overlapping_areas() const {
-	ERR_FAIL_COND_V_MSG(!monitoring, Array(), "Can't find overlapping bodies when monitoring is off.");
 	TypedArray<Area2D> ret;
+	ERR_FAIL_COND_V_MSG(!monitoring, ret, "Can't find overlapping areas when monitoring is off.");
 	ret.resize(area_map.size());
 	int idx = 0;
 	for (const KeyValue<ObjectID, AreaState> &E : area_map) {
 		Object *obj = ObjectDB::get_instance(E.key);
-		if (!obj) {
-			ret.resize(ret.size() - 1); //ops
-		} else {
-			ret[idx++] = obj;
+		if (obj) {
+			ret[idx] = obj;
+			idx++;
 		}
 	}
 
+	ret.resize(idx);
 	return ret;
+}
+
+bool Area2D::has_overlapping_bodies() const {
+	ERR_FAIL_COND_V_MSG(!monitoring, false, "Can't find overlapping bodies when monitoring is off.");
+	return !body_map.is_empty();
+}
+
+bool Area2D::has_overlapping_areas() const {
+	ERR_FAIL_COND_V_MSG(!monitoring, false, "Can't find overlapping areas when monitoring is off.");
+	return !area_map.is_empty();
 }
 
 bool Area2D::overlaps_area(Node *p_area) const {
@@ -498,8 +513,8 @@ StringName Area2D::get_audio_bus_name() const {
 	return "Master";
 }
 
-void Area2D::_validate_property(PropertyInfo &property) const {
-	if (property.name == "audio_bus_name") {
+void Area2D::_validate_property(PropertyInfo &p_property) const {
+	if (p_property.name == "audio_bus_name") {
 		String options;
 		for (int i = 0; i < AudioServer::get_singleton()->get_bus_count(); i++) {
 			if (i > 0) {
@@ -509,28 +524,28 @@ void Area2D::_validate_property(PropertyInfo &property) const {
 			options += name;
 		}
 
-		property.hint_string = options;
-	} else if (property.name.begins_with("gravity") && property.name != "gravity_space_override") {
+		p_property.hint_string = options;
+	} else if (p_property.name.begins_with("gravity") && p_property.name != "gravity_space_override") {
 		if (gravity_space_override == SPACE_OVERRIDE_DISABLED) {
-			property.usage = PROPERTY_USAGE_NO_EDITOR | PROPERTY_USAGE_INTERNAL;
+			p_property.usage = PROPERTY_USAGE_NO_EDITOR;
 		} else {
 			if (gravity_is_point) {
-				if (property.name == "gravity_direction") {
-					property.usage = PROPERTY_USAGE_NO_EDITOR | PROPERTY_USAGE_INTERNAL;
+				if (p_property.name == "gravity_direction") {
+					p_property.usage = PROPERTY_USAGE_NO_EDITOR;
 				}
 			} else {
-				if (property.name.begins_with("gravity_point_")) {
-					property.usage = PROPERTY_USAGE_NO_EDITOR | PROPERTY_USAGE_INTERNAL;
+				if (p_property.name.begins_with("gravity_point_")) {
+					p_property.usage = PROPERTY_USAGE_NO_EDITOR;
 				}
 			}
 		}
-	} else if (property.name.begins_with("linear_damp") && property.name != "linear_damp_space_override") {
+	} else if (p_property.name.begins_with("linear_damp") && p_property.name != "linear_damp_space_override") {
 		if (linear_damp_space_override == SPACE_OVERRIDE_DISABLED) {
-			property.usage = PROPERTY_USAGE_NO_EDITOR | PROPERTY_USAGE_INTERNAL;
+			p_property.usage = PROPERTY_USAGE_NO_EDITOR;
 		}
-	} else if (property.name.begins_with("angular_damp") && property.name != "angular_damp_space_override") {
+	} else if (p_property.name.begins_with("angular_damp") && p_property.name != "angular_damp_space_override") {
 		if (angular_damp_space_override == SPACE_OVERRIDE_DISABLED) {
-			property.usage = PROPERTY_USAGE_NO_EDITOR | PROPERTY_USAGE_INTERNAL;
+			p_property.usage = PROPERTY_USAGE_NO_EDITOR;
 		}
 	}
 }
@@ -542,8 +557,8 @@ void Area2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_gravity_is_point", "enable"), &Area2D::set_gravity_is_point);
 	ClassDB::bind_method(D_METHOD("is_gravity_a_point"), &Area2D::is_gravity_a_point);
 
-	ClassDB::bind_method(D_METHOD("set_gravity_point_distance_scale", "distance_scale"), &Area2D::set_gravity_point_distance_scale);
-	ClassDB::bind_method(D_METHOD("get_gravity_point_distance_scale"), &Area2D::get_gravity_point_distance_scale);
+	ClassDB::bind_method(D_METHOD("set_gravity_point_unit_distance", "distance_scale"), &Area2D::set_gravity_point_unit_distance);
+	ClassDB::bind_method(D_METHOD("get_gravity_point_unit_distance"), &Area2D::get_gravity_point_unit_distance);
 
 	ClassDB::bind_method(D_METHOD("set_gravity_point_center", "center"), &Area2D::set_gravity_point_center);
 	ClassDB::bind_method(D_METHOD("get_gravity_point_center"), &Area2D::get_gravity_point_center);
@@ -578,6 +593,9 @@ void Area2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_overlapping_bodies"), &Area2D::get_overlapping_bodies);
 	ClassDB::bind_method(D_METHOD("get_overlapping_areas"), &Area2D::get_overlapping_areas);
 
+	ClassDB::bind_method(D_METHOD("has_overlapping_bodies"), &Area2D::has_overlapping_bodies);
+	ClassDB::bind_method(D_METHOD("has_overlapping_areas"), &Area2D::has_overlapping_areas);
+
 	ClassDB::bind_method(D_METHOD("overlaps_body", "body"), &Area2D::overlaps_body);
 	ClassDB::bind_method(D_METHOD("overlaps_area", "area"), &Area2D::overlaps_area);
 
@@ -604,10 +622,10 @@ void Area2D::_bind_methods() {
 	ADD_GROUP("Gravity", "gravity_");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "gravity_space_override", PROPERTY_HINT_ENUM, "Disabled,Combine,Combine-Replace,Replace,Replace-Combine", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_UPDATE_ALL_IF_MODIFIED), "set_gravity_space_override_mode", "get_gravity_space_override_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "gravity_point", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_UPDATE_ALL_IF_MODIFIED), "set_gravity_is_point", "is_gravity_a_point");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "gravity_point_distance_scale", PROPERTY_HINT_RANGE, "0,1024,0.001,or_greater,exp"), "set_gravity_point_distance_scale", "get_gravity_point_distance_scale");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "gravity_point_unit_distance", PROPERTY_HINT_RANGE, "0,1024,0.001,or_greater,exp,suffix:px"), "set_gravity_point_unit_distance", "get_gravity_point_unit_distance");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "gravity_point_center", PROPERTY_HINT_NONE, "suffix:px"), "set_gravity_point_center", "get_gravity_point_center");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "gravity_direction"), "set_gravity_direction", "get_gravity_direction");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "gravity", PROPERTY_HINT_RANGE, U"-4096,4096,0.001,or_lesser,or_greater,suffix:px/s\u00B2"), "set_gravity", "get_gravity");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "gravity", PROPERTY_HINT_RANGE, U"-4096,4096,0.001,or_less,or_greater,suffix:px/s\u00B2"), "set_gravity", "get_gravity");
 
 	ADD_GROUP("Linear Damp", "linear_damp_");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "linear_damp_space_override", PROPERTY_HINT_ENUM, "Disabled,Combine,Combine-Replace,Replace,Replace-Combine", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_UPDATE_ALL_IF_MODIFIED), "set_linear_damp_space_override_mode", "get_linear_damp_space_override_mode");
@@ -634,6 +652,7 @@ Area2D::Area2D() :
 	set_gravity_direction(Vector2(0, 1));
 	set_monitoring(true);
 	set_monitorable(true);
+	set_hide_clip_children(true);
 }
 
 Area2D::~Area2D() {

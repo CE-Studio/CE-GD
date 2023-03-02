@@ -1,34 +1,35 @@
-/*************************************************************************/
-/*  extension_api_dump.cpp                                               */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  extension_api_dump.cpp                                                */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "extension_api_dump.h"
+
 #include "core/config/engine.h"
 #include "core/core_constants.h"
 #include "core/io/file_access.h"
@@ -38,7 +39,15 @@
 
 #ifdef TOOLS_ENABLED
 
-static String get_type_name(const PropertyInfo &p_info) {
+static String get_builtin_or_variant_type_name(const Variant::Type p_type) {
+	if (p_type == Variant::NIL) {
+		return "Variant";
+	} else {
+		return Variant::get_type_name(p_type);
+	}
+}
+
+static String get_property_info_type_name(const PropertyInfo &p_info) {
 	if (p_info.type == Variant::INT && (p_info.hint == PROPERTY_HINT_INT_IS_POINTER)) {
 		if (p_info.hint_string.is_empty()) {
 			return "void*";
@@ -46,11 +55,17 @@ static String get_type_name(const PropertyInfo &p_info) {
 			return p_info.hint_string + "*";
 		}
 	}
+	if (p_info.type == Variant::ARRAY && (p_info.hint == PROPERTY_HINT_ARRAY_TYPE)) {
+		return String("typedarray::") + p_info.hint_string;
+	}
 	if (p_info.type == Variant::INT && (p_info.usage & (PROPERTY_USAGE_CLASS_IS_ENUM))) {
 		return String("enum::") + String(p_info.class_name);
 	}
 	if (p_info.type == Variant::INT && (p_info.usage & (PROPERTY_USAGE_CLASS_IS_BITFIELD))) {
 		return String("bitfield::") + String(p_info.class_name);
+	}
+	if (p_info.type == Variant::INT && (p_info.usage & PROPERTY_USAGE_ARRAY)) {
+		return "int";
 	}
 	if (p_info.class_name != StringName()) {
 		return p_info.class_name;
@@ -64,10 +79,15 @@ static String get_type_name(const PropertyInfo &p_info) {
 	if (p_info.type == Variant::NIL) {
 		return "void";
 	}
-	return Variant::get_type_name(p_info.type);
+	return get_builtin_or_variant_type_name(p_info.type);
 }
 
-Dictionary NativeExtensionAPIDump::generate_extension_api() {
+static String get_type_meta_name(const GodotTypeInfo::Metadata metadata) {
+	static const char *argmeta[11] = { "none", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float", "double" };
+	return argmeta[metadata];
+}
+
+Dictionary GDExtensionAPIDump::generate_extension_api() {
 	Dictionary api_dump;
 
 	{
@@ -88,6 +108,7 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 	}
 
 	const uint32_t vec3_elems = 3;
+	const uint32_t vec4_elems = 4;
 	const uint32_t ptrsize_32 = 4;
 	const uint32_t ptrsize_64 = 8;
 	static const char *build_config_name[4] = { "float_32", "float_64", "double_32", "double_64" };
@@ -131,11 +152,14 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 			{ Variant::VECTOR3, vec3_elems * sizeof(float), vec3_elems * sizeof(float), vec3_elems * sizeof(double), vec3_elems * sizeof(double) },
 			{ Variant::VECTOR3I, 3 * sizeof(int32_t), 3 * sizeof(int32_t), 3 * sizeof(int32_t), 3 * sizeof(int32_t) },
 			{ Variant::TRANSFORM2D, 6 * sizeof(float), 6 * sizeof(float), 6 * sizeof(double), 6 * sizeof(double) },
+			{ Variant::VECTOR4, 4 * sizeof(float), 4 * sizeof(float), 4 * sizeof(double), 4 * sizeof(double) },
+			{ Variant::VECTOR4I, 4 * sizeof(int32_t), 4 * sizeof(int32_t), 4 * sizeof(int32_t), 4 * sizeof(int32_t) },
 			{ Variant::PLANE, (vec3_elems + 1) * sizeof(float), (vec3_elems + 1) * sizeof(float), (vec3_elems + 1) * sizeof(double), (vec3_elems + 1) * sizeof(double) },
 			{ Variant::QUATERNION, 4 * sizeof(float), 4 * sizeof(float), 4 * sizeof(double), 4 * sizeof(double) },
 			{ Variant::AABB, (vec3_elems * 2) * sizeof(float), (vec3_elems * 2) * sizeof(float), (vec3_elems * 2) * sizeof(double), (vec3_elems * 2) * sizeof(double) },
 			{ Variant::BASIS, (vec3_elems * 3) * sizeof(float), (vec3_elems * 3) * sizeof(float), (vec3_elems * 3) * sizeof(double), (vec3_elems * 3) * sizeof(double) },
 			{ Variant::TRANSFORM3D, (vec3_elems * 4) * sizeof(float), (vec3_elems * 4) * sizeof(float), (vec3_elems * 4) * sizeof(double), (vec3_elems * 4) * sizeof(double) },
+			{ Variant::PROJECTION, (vec4_elems * 4) * sizeof(float), (vec4_elems * 4) * sizeof(float), (vec4_elems * 4) * sizeof(double), (vec4_elems * 4) * sizeof(double) },
 			{ Variant::COLOR, 4 * sizeof(float), 4 * sizeof(float), 4 * sizeof(float), 4 * sizeof(float) },
 			{ Variant::STRING_NAME, ptrsize_32, ptrsize_64, ptrsize_32, ptrsize_64 },
 			{ Variant::NODE_PATH, ptrsize_32, ptrsize_64, ptrsize_32, ptrsize_64 },
@@ -158,8 +182,8 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 		};
 
 		// Validate sizes at compile time for the current build configuration.
-		static_assert(type_size_array[Variant::BOOL][sizeof(void *)] == sizeof(GDNativeBool), "Size of bool mismatch");
-		static_assert(type_size_array[Variant::INT][sizeof(void *)] == sizeof(GDNativeInt), "Size of int mismatch");
+		static_assert(type_size_array[Variant::BOOL][sizeof(void *)] == sizeof(GDExtensionBool), "Size of bool mismatch");
+		static_assert(type_size_array[Variant::INT][sizeof(void *)] == sizeof(GDExtensionInt), "Size of int mismatch");
 		static_assert(type_size_array[Variant::FLOAT][sizeof(void *)] == sizeof(double), "Size of float mismatch");
 		static_assert(type_size_array[Variant::STRING][sizeof(void *)] == sizeof(String), "Size of String mismatch");
 		static_assert(type_size_array[Variant::VECTOR2][sizeof(void *)] == sizeof(Vector2), "Size of Vector2 mismatch");
@@ -169,11 +193,14 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 		static_assert(type_size_array[Variant::VECTOR3][sizeof(void *)] == sizeof(Vector3), "Size of Vector3 mismatch");
 		static_assert(type_size_array[Variant::VECTOR3I][sizeof(void *)] == sizeof(Vector3i), "Size of Vector3i mismatch");
 		static_assert(type_size_array[Variant::TRANSFORM2D][sizeof(void *)] == sizeof(Transform2D), "Size of Transform2D mismatch");
+		static_assert(type_size_array[Variant::VECTOR4][sizeof(void *)] == sizeof(Vector4), "Size of Vector4 mismatch");
+		static_assert(type_size_array[Variant::VECTOR4I][sizeof(void *)] == sizeof(Vector4i), "Size of Vector4i mismatch");
 		static_assert(type_size_array[Variant::PLANE][sizeof(void *)] == sizeof(Plane), "Size of Plane mismatch");
 		static_assert(type_size_array[Variant::QUATERNION][sizeof(void *)] == sizeof(Quaternion), "Size of Quaternion mismatch");
 		static_assert(type_size_array[Variant::AABB][sizeof(void *)] == sizeof(AABB), "Size of AABB mismatch");
 		static_assert(type_size_array[Variant::BASIS][sizeof(void *)] == sizeof(Basis), "Size of Basis mismatch");
 		static_assert(type_size_array[Variant::TRANSFORM3D][sizeof(void *)] == sizeof(Transform3D), "Size of Transform3D mismatch");
+		static_assert(type_size_array[Variant::PROJECTION][sizeof(void *)] == sizeof(Projection), "Size of Projection mismatch");
 		static_assert(type_size_array[Variant::COLOR][sizeof(void *)] == sizeof(Color), "Size of Color mismatch");
 		static_assert(type_size_array[Variant::STRING_NAME][sizeof(void *)] == sizeof(StringName), "Size of StringName mismatch");
 		static_assert(type_size_array[Variant::NODE_PATH][sizeof(void *)] == sizeof(NodePath), "Size of NodePath mismatch");
@@ -205,7 +232,7 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 				String name = t == Variant::VARIANT_MAX ? String("Variant") : Variant::get_type_name(t);
 				Dictionary d2;
 				d2["name"] = name;
-				uint32_t size;
+				uint32_t size = 0;
 				switch (i) {
 					case 0:
 						size = type_size_array[j].size_32_bits_real_float;
@@ -230,51 +257,140 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 	}
 
 	{
-		// Member offsets sizes.
+		// Member offsets, meta types and sizes.
+
+#define REAL_MEMBER_OFFSET(type, member) \
+	{                                    \
+		type,                            \
+				member,                  \
+				"float",                 \
+				sizeof(float),           \
+				"float",                 \
+				sizeof(float),           \
+				"double",                \
+				sizeof(double),          \
+				"double",                \
+				sizeof(double),          \
+	}
+
+#define INT32_MEMBER_OFFSET(type, member) \
+	{                                     \
+		type,                             \
+				member,                   \
+				"int32",                  \
+				sizeof(int32_t),          \
+				"int32",                  \
+				sizeof(int32_t),          \
+				"int32",                  \
+				sizeof(int32_t),          \
+				"int32",                  \
+				sizeof(int32_t),          \
+	}
+
+#define INT32_BASED_BUILTIN_MEMBER_OFFSET(type, member, member_type, member_elems) \
+	{                                                                              \
+		type,                                                                      \
+				member,                                                            \
+				member_type,                                                       \
+				sizeof(int32_t) * member_elems,                                    \
+				member_type,                                                       \
+				sizeof(int32_t) * member_elems,                                    \
+				member_type,                                                       \
+				sizeof(int32_t) * member_elems,                                    \
+				member_type,                                                       \
+				sizeof(int32_t) * member_elems,                                    \
+	}
+
+#define REAL_BASED_BUILTIN_MEMBER_OFFSET(type, member, member_type, member_elems) \
+	{                                                                             \
+		type,                                                                     \
+				member,                                                           \
+				member_type,                                                      \
+				sizeof(float) * member_elems,                                     \
+				member_type,                                                      \
+				sizeof(float) * member_elems,                                     \
+				member_type,                                                      \
+				sizeof(double) * member_elems,                                    \
+				member_type,                                                      \
+				sizeof(double) * member_elems,                                    \
+	}
+
 		struct {
 			Variant::Type type;
 			const char *member;
-			uint32_t offset_32_bits_real_float;
-			uint32_t offset_64_bits_real_float;
-			uint32_t offset_32_bits_real_double;
-			uint32_t offset_64_bits_real_double;
+			const char *member_meta_32_bits_real_float;
+			const uint32_t member_size_32_bits_real_float;
+			const char *member_meta_64_bits_real_float;
+			const uint32_t member_size_64_bits_real_float;
+			const char *member_meta_32_bits_real_double;
+			const uint32_t member_size_32_bits_real_double;
+			const char *member_meta_64_bits_real_double;
+			const uint32_t member_size_64_bits_real_double;
 		} member_offset_array[] = {
-			{ Variant::VECTOR2, "x", 0, 0, 0, 0 },
-			{ Variant::VECTOR2, "y", sizeof(float), sizeof(float), sizeof(double), sizeof(double) },
-			{ Variant::VECTOR2I, "x", 0, 0, 0, 0 },
-			{ Variant::VECTOR2I, "y", sizeof(int32_t), sizeof(int32_t), sizeof(int32_t), sizeof(int32_t) },
-			{ Variant::RECT2, "position", 0, 0, 0, 0 },
-			{ Variant::RECT2, "size", 2 * sizeof(Vector2), 2 * sizeof(float), 2 * sizeof(double), 2 * sizeof(double) },
-			{ Variant::RECT2I, "position", 0, 0, 0, 0 },
-			{ Variant::RECT2I, "size", 2 * sizeof(int32_t), 2 * sizeof(int32_t), 2 * sizeof(int32_t), 2 * sizeof(int32_t) },
-			{ Variant::VECTOR3, "x", 0, 0, 0, 0 },
-			{ Variant::VECTOR3, "y", sizeof(float), sizeof(float), sizeof(double), sizeof(double) },
-			{ Variant::VECTOR3, "z", 2 * sizeof(float), 2 * sizeof(float), 2 * sizeof(double), 2 * sizeof(double) },
-			{ Variant::VECTOR3I, "x", 0, 0, 0, 0 },
-			{ Variant::VECTOR3I, "y", sizeof(int32_t), sizeof(int32_t), sizeof(int32_t), sizeof(int32_t) },
-			{ Variant::VECTOR3I, "z", 2 * sizeof(int32_t), 2 * sizeof(int32_t), 2 * sizeof(int32_t), 2 * sizeof(int32_t) },
-			{ Variant::TRANSFORM2D, "x", 0, 0, 0, 0 },
-			{ Variant::TRANSFORM2D, "y", 2 * sizeof(float), 2 * sizeof(float), 2 * sizeof(double), 2 * sizeof(double) },
-			{ Variant::TRANSFORM2D, "origin", 4 * sizeof(float), 4 * sizeof(float), 4 * sizeof(double), 4 * sizeof(double) },
-			{ Variant::PLANE, "normal", 0, 0, 0, 0 },
-			{ Variant::PLANE, "d", vec3_elems * sizeof(float), vec3_elems * sizeof(float), vec3_elems * sizeof(double), vec3_elems * sizeof(double) },
-			{ Variant::QUATERNION, "x", 0, 0, 0, 0 },
-			{ Variant::QUATERNION, "y", sizeof(float), sizeof(float), sizeof(double), sizeof(double) },
-			{ Variant::QUATERNION, "z", 2 * sizeof(float), 2 * sizeof(float), 2 * sizeof(double), 2 * sizeof(double) },
-			{ Variant::QUATERNION, "w", 3 * sizeof(float), 3 * sizeof(float), 3 * sizeof(double), 3 * sizeof(double) },
-			{ Variant::AABB, "position", 0, 0, 0, 0 },
-			{ Variant::AABB, "size", vec3_elems * sizeof(float), vec3_elems * sizeof(float), vec3_elems * sizeof(double), vec3_elems * sizeof(double) },
-			// Remember that basis vectors are flipped!
-			{ Variant::BASIS, "x", 0, 0, 0, 0 },
-			{ Variant::BASIS, "y", vec3_elems * sizeof(float), vec3_elems * sizeof(float), vec3_elems * sizeof(double), vec3_elems * sizeof(double) },
-			{ Variant::BASIS, "z", vec3_elems * 2 * sizeof(float), vec3_elems * 2 * sizeof(float), vec3_elems * 2 * sizeof(double), vec3_elems * 2 * sizeof(double) },
-			{ Variant::TRANSFORM3D, "basis", 0, 0, 0, 0 },
-			{ Variant::TRANSFORM3D, "origin", (vec3_elems * 3) * sizeof(float), (vec3_elems * 3) * sizeof(float), (vec3_elems * 3) * sizeof(double), (vec3_elems * 3) * sizeof(double) },
-			{ Variant::COLOR, "r", 0, 0, 0, 0 },
-			{ Variant::COLOR, "g", sizeof(float), sizeof(float), sizeof(float), sizeof(float) },
-			{ Variant::COLOR, "b", 2 * sizeof(float), 2 * sizeof(float), 2 * sizeof(float), 2 * sizeof(float) },
-			{ Variant::COLOR, "a", 3 * sizeof(float), 3 * sizeof(float), 3 * sizeof(float), 3 * sizeof(float) },
-			{ Variant::NIL, nullptr, 0, 0, 0, 0 },
+			// Vector2
+			REAL_MEMBER_OFFSET(Variant::VECTOR2, "x"),
+			REAL_MEMBER_OFFSET(Variant::VECTOR2, "y"),
+			// Vector2i
+			INT32_MEMBER_OFFSET(Variant::VECTOR2I, "x"),
+			INT32_MEMBER_OFFSET(Variant::VECTOR2I, "y"),
+			// Rect2
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::RECT2, "position", "Vector2", 2),
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::RECT2, "size", "Vector2", 2),
+			// Rect2i
+			INT32_BASED_BUILTIN_MEMBER_OFFSET(Variant::RECT2I, "position", "Vector2i", 2),
+			INT32_BASED_BUILTIN_MEMBER_OFFSET(Variant::RECT2I, "size", "Vector2i", 2),
+			// Vector3
+			REAL_MEMBER_OFFSET(Variant::VECTOR3, "x"),
+			REAL_MEMBER_OFFSET(Variant::VECTOR3, "y"),
+			REAL_MEMBER_OFFSET(Variant::VECTOR3, "z"),
+			// Vector3i
+			INT32_MEMBER_OFFSET(Variant::VECTOR3I, "x"),
+			INT32_MEMBER_OFFSET(Variant::VECTOR3I, "y"),
+			INT32_MEMBER_OFFSET(Variant::VECTOR3I, "z"),
+			// Transform2D
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::TRANSFORM2D, "x", "Vector2", 2),
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::TRANSFORM2D, "y", "Vector2", 2),
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::TRANSFORM2D, "origin", "Vector2", 2),
+			// Vector4
+			REAL_MEMBER_OFFSET(Variant::VECTOR4, "x"),
+			REAL_MEMBER_OFFSET(Variant::VECTOR4, "y"),
+			REAL_MEMBER_OFFSET(Variant::VECTOR4, "z"),
+			REAL_MEMBER_OFFSET(Variant::VECTOR4, "w"),
+			// Vector4i
+			INT32_MEMBER_OFFSET(Variant::VECTOR4I, "x"),
+			INT32_MEMBER_OFFSET(Variant::VECTOR4I, "y"),
+			INT32_MEMBER_OFFSET(Variant::VECTOR4I, "z"),
+			INT32_MEMBER_OFFSET(Variant::VECTOR4I, "w"),
+			// Plane
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::PLANE, "normal", "Vector3", vec3_elems),
+			REAL_MEMBER_OFFSET(Variant::PLANE, "d"),
+			// Quaternion
+			REAL_MEMBER_OFFSET(Variant::QUATERNION, "x"),
+			REAL_MEMBER_OFFSET(Variant::QUATERNION, "y"),
+			REAL_MEMBER_OFFSET(Variant::QUATERNION, "z"),
+			REAL_MEMBER_OFFSET(Variant::QUATERNION, "w"),
+			// AABB
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::AABB, "position", "Vector3", vec3_elems),
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::AABB, "size", "Vector3", vec3_elems),
+			// Basis (remember that basis vectors are flipped!)
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::BASIS, "x", "Vector3", vec3_elems),
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::BASIS, "y", "Vector3", vec3_elems),
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::BASIS, "z", "Vector3", vec3_elems),
+			// Transform3D
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::TRANSFORM3D, "basis", "Basis", vec3_elems * 3),
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::TRANSFORM3D, "origin", "Vector3", vec3_elems),
+			// Projection
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::PROJECTION, "x", "Vector4", vec4_elems),
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::PROJECTION, "y", "Vector4", vec4_elems),
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::PROJECTION, "z", "Vector4", vec4_elems),
+			REAL_BASED_BUILTIN_MEMBER_OFFSET(Variant::PROJECTION, "w", "Vector4", vec4_elems),
+			// Color (always composed of 4bytes floats)
+			{ Variant::COLOR, "r", "float", sizeof(float), "float", sizeof(float), "float", sizeof(float), "float", sizeof(float) },
+			{ Variant::COLOR, "g", "float", sizeof(float), "float", sizeof(float), "float", sizeof(float), "float", sizeof(float) },
+			{ Variant::COLOR, "b", "float", sizeof(float), "float", sizeof(float), "float", sizeof(float), "float", sizeof(float) },
+			{ Variant::COLOR, "a", "float", sizeof(float), "float", sizeof(float), "float", sizeof(float), "float", sizeof(float) },
+			// End marker, must stay last
+			{ Variant::NIL, nullptr, nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0 },
 		};
 
 		Array core_type_member_offsets;
@@ -285,15 +401,16 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 			Array type_offsets;
 			uint32_t idx = 0;
 
-			Variant::Type last_type = Variant::NIL;
+			Variant::Type previous_type = Variant::NIL;
 
 			Dictionary d2;
 			Array members;
+			uint32_t offset = 0;
 
 			while (true) {
 				Variant::Type t = member_offset_array[idx].type;
-				if (t != last_type) {
-					if (last_type != Variant::NIL) {
+				if (t != previous_type) {
+					if (previous_type != Variant::NIL) {
 						d2["members"] = members;
 						type_offsets.push_back(d2);
 					}
@@ -304,27 +421,35 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 					String name = t == Variant::VARIANT_MAX ? String("Variant") : Variant::get_type_name(t);
 					d2 = Dictionary();
 					members = Array();
+					offset = 0;
 					d2["name"] = name;
-					last_type = t;
+					previous_type = t;
 				}
 				Dictionary d3;
-				uint32_t offset;
+				const char *member_meta = nullptr;
+				uint32_t member_size = 0;
 				switch (i) {
 					case 0:
-						offset = member_offset_array[idx].offset_32_bits_real_float;
+						member_meta = member_offset_array[idx].member_meta_32_bits_real_float;
+						member_size = member_offset_array[idx].member_size_32_bits_real_float;
 						break;
 					case 1:
-						offset = member_offset_array[idx].offset_64_bits_real_float;
+						member_meta = member_offset_array[idx].member_meta_64_bits_real_float;
+						member_size = member_offset_array[idx].member_size_64_bits_real_float;
 						break;
 					case 2:
-						offset = member_offset_array[idx].offset_32_bits_real_double;
+						member_meta = member_offset_array[idx].member_meta_32_bits_real_double;
+						member_size = member_offset_array[idx].member_size_32_bits_real_double;
 						break;
 					case 3:
-						offset = member_offset_array[idx].offset_64_bits_real_double;
+						member_meta = member_offset_array[idx].member_meta_64_bits_real_double;
+						member_size = member_offset_array[idx].member_size_64_bits_real_double;
 						break;
 				}
 				d3["member"] = member_offset_array[idx].member;
 				d3["offset"] = offset;
+				d3["meta"] = member_meta;
+				offset += member_size;
 				members.push_back(d3);
 				idx++;
 			}
@@ -338,17 +463,21 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 		// Global enums and constants.
 		Array constants;
 		HashMap<String, List<Pair<String, int64_t>>> enum_list;
+		HashMap<String, bool> enum_is_bitfield;
 
 		for (int i = 0; i < CoreConstants::get_global_constant_count(); i++) {
 			int64_t value = CoreConstants::get_global_constant_value(i);
 			String enum_name = CoreConstants::get_global_constant_enum(i);
 			String name = CoreConstants::get_global_constant_name(i);
+			bool bitfield = CoreConstants::is_global_constant_bitfield(i);
 			if (!enum_name.is_empty()) {
 				enum_list[enum_name].push_back(Pair<String, int64_t>(name, value));
+				enum_is_bitfield[enum_name] = bitfield;
 			} else {
 				Dictionary d;
 				d["name"] = name;
 				d["value"] = value;
+				d["is_bitfield"] = bitfield;
 				constants.push_back(d);
 			}
 		}
@@ -359,6 +488,7 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 		for (const KeyValue<String, List<Pair<String, int64_t>>> &E : enum_list) {
 			Dictionary d1;
 			d1["name"] = E.key;
+			d1["is_bitfield"] = enum_is_bitfield[E.key];
 			Array values;
 			for (const Pair<String, int64_t> &F : E.value) {
 				Dictionary d2;
@@ -405,8 +535,7 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 				Dictionary arg;
 				String argname = vararg ? "arg" + itos(i + 1) : Variant::get_utility_function_argument_name(name, i);
 				arg["name"] = argname;
-				Variant::Type argtype = Variant::get_utility_function_argument_type(name, i);
-				arg["type"] = argtype == Variant::NIL ? String("Variant") : Variant::get_type_name(argtype);
+				arg["type"] = get_builtin_or_variant_type_name(Variant::get_utility_function_argument_type(name, i));
 				//no default value support in utility functions
 				arguments.push_back(arg);
 			}
@@ -436,11 +565,10 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 			Dictionary d;
 			d["name"] = Variant::get_type_name(type);
 			if (Variant::has_indexing(type)) {
-				Variant::Type index_type = Variant::get_indexed_element_type(type);
-				d["indexing_return_type"] = index_type == Variant::NIL ? String("Variant") : Variant::get_type_name(index_type);
+				d["indexing_return_type"] = get_builtin_or_variant_type_name(Variant::get_indexed_element_type(type));
 			}
 
-			d["is_keyed"] = Variant::ValidatedKeyedSetter(type);
+			d["is_keyed"] = Variant::is_keyed(type);
 
 			{
 				//members
@@ -451,7 +579,7 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 				for (const StringName &member_name : member_names) {
 					Dictionary d2;
 					d2["name"] = String(member_name);
-					d2["type"] = Variant::get_type_name(Variant::get_member_type(type, member_name));
+					d2["type"] = get_builtin_or_variant_type_name(Variant::get_member_type(type, member_name));
 					members.push_back(d2);
 				}
 				if (members.size()) {
@@ -468,7 +596,7 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 					Dictionary d2;
 					d2["name"] = String(constant_name);
 					Variant constant = Variant::get_constant_value(type, constant_name);
-					d2["type"] = Variant::get_type_name(constant.get_type());
+					d2["type"] = get_builtin_or_variant_type_name(constant.get_type());
 					d2["value"] = constant.get_construct_string();
 					constants.push_back(d2);
 				}
@@ -519,9 +647,9 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 							Dictionary d2;
 							d2["name"] = Variant::get_operator_name(Variant::Operator(k));
 							if (k != Variant::OP_NEGATE && k != Variant::OP_POSITIVE && k != Variant::OP_NOT && k != Variant::OP_BIT_NEGATE) {
-								d2["right_type"] = Variant::get_type_name(Variant::Type(j));
+								d2["right_type"] = get_builtin_or_variant_type_name(Variant::Type(j));
 							}
-							d2["return_type"] = Variant::get_type_name(Variant::get_operator_return_type(Variant::Operator(k), type, Variant::Type(j)));
+							d2["return_type"] = get_builtin_or_variant_type_name(Variant::get_operator_return_type(Variant::Operator(k), type, Variant::Type(j)));
 							operators.push_back(d2);
 						}
 					}
@@ -555,8 +683,7 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 					for (int j = 0; j < argcount; j++) {
 						Dictionary d3;
 						d3["name"] = Variant::get_builtin_method_argument_name(type, method_name, j);
-						Variant::Type argtype = Variant::get_builtin_method_argument_type(type, method_name, j);
-						d3["type"] = argtype == Variant::NIL ? String("Variant") : Variant::get_type_name(argtype);
+						d3["type"] = get_builtin_or_variant_type_name(Variant::get_builtin_method_argument_type(type, method_name, j));
 
 						if (j >= (argcount - default_args.size())) {
 							int dargidx = j - (argcount - default_args.size());
@@ -588,7 +715,7 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 					for (int k = 0; k < argcount; k++) {
 						Dictionary d3;
 						d3["name"] = Variant::get_constructor_argument_name(type, j, k);
-						d3["type"] = Variant::get_type_name(Variant::get_constructor_argument_type(type, j, k));
+						d3["type"] = get_builtin_or_variant_type_name(Variant::get_constructor_argument_type(type, j, k));
 						arguments.push_back(d3);
 					}
 					if (arguments.size()) {
@@ -716,7 +843,11 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 								d3["name"] = pinfo.name;
 							}
 
-							d3["type"] = get_type_name(pinfo);
+							d3["type"] = get_property_info_type_name(pinfo);
+
+							if (mi.get_argument_meta(i) > 0) {
+								d3["meta"] = get_type_meta_name((GodotTypeInfo::Metadata)mi.get_argument_meta(i));
+							}
 
 							if (i == -1) {
 								d2["return_value"] = d3;
@@ -759,11 +890,10 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 							if (i >= 0) {
 								d3["name"] = pinfo.name;
 							}
-							d3["type"] = get_type_name(pinfo);
+							d3["type"] = get_property_info_type_name(pinfo);
 
 							if (method->get_argument_meta(i) > 0) {
-								static const char *argmeta[11] = { "none", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float", "double" };
-								d3["meta"] = argmeta[method->get_argument_meta(i)];
+								d3["meta"] = get_type_meta_name(method->get_argument_meta(i));
 							}
 
 							if (i >= 0 && i >= (method->get_argument_count() - default_args.size())) {
@@ -806,7 +936,10 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 					for (int i = 0; i < F.arguments.size(); i++) {
 						Dictionary d3;
 						d3["name"] = F.arguments[i].name;
-						d3["type"] = get_type_name(F.arguments[i]);
+						d3["type"] = get_property_info_type_name(F.arguments[i]);
+						if (F.get_argument_meta(i) > 0) {
+							d3["meta"] = get_type_meta_name((GodotTypeInfo::Metadata)F.get_argument_meta(i));
+						}
 						arguments.push_back(d3);
 					}
 					if (arguments.size()) {
@@ -826,19 +959,32 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 				List<PropertyInfo> property_list;
 				ClassDB::get_property_list(class_name, &property_list, true);
 				for (const PropertyInfo &F : property_list) {
-					if (F.usage & PROPERTY_USAGE_CATEGORY || F.usage & PROPERTY_USAGE_GROUP || F.usage & PROPERTY_USAGE_SUBGROUP) {
+					if (F.usage & PROPERTY_USAGE_CATEGORY || F.usage & PROPERTY_USAGE_GROUP || F.usage & PROPERTY_USAGE_SUBGROUP || (F.type == Variant::NIL && F.usage & PROPERTY_USAGE_ARRAY)) {
 						continue; //not real properties
 					}
 					if (F.name.begins_with("_")) {
 						continue; //hidden property
 					}
+					if (F.name.find("/") >= 0) {
+						// Ignore properties with '/' (slash) in the name. These are only meant for use in the inspector.
+						continue;
+					}
 					StringName property_name = F.name;
 					Dictionary d2;
-					d2["type"] = get_type_name(F);
+					d2["type"] = get_property_info_type_name(F);
 					d2["name"] = String(property_name);
-					d2["setter"] = ClassDB::get_property_setter(class_name, F.name);
-					d2["getter"] = ClassDB::get_property_getter(class_name, F.name);
-					d2["index"] = ClassDB::get_property_index(class_name, F.name);
+					StringName setter = ClassDB::get_property_setter(class_name, F.name);
+					if (!(setter == "")) {
+						d2["setter"] = setter;
+					}
+					StringName getter = ClassDB::get_property_getter(class_name, F.name);
+					if (!(getter == "")) {
+						d2["getter"] = getter;
+					}
+					int index = ClassDB::get_property_index(class_name, F.name);
+					if (index != -1) {
+						d2["index"] = index;
+					}
 					properties.push_back(d2);
 				}
 
@@ -899,14 +1045,14 @@ Dictionary NativeExtensionAPIDump::generate_extension_api() {
 	return api_dump;
 }
 
-void NativeExtensionAPIDump::generate_extension_json_file(const String &p_path) {
+void GDExtensionAPIDump::generate_extension_json_file(const String &p_path) {
 	Dictionary api = generate_extension_api();
 	Ref<JSON> json;
 	json.instantiate();
 
-	String text = json->stringify(api, "\t", false);
+	String text = json->stringify(api, "\t", false) + "\n";
 	Ref<FileAccess> fa = FileAccess::open(p_path, FileAccess::WRITE);
-	CharString cs = text.ascii();
-	fa->store_buffer((const uint8_t *)cs.ptr(), cs.length());
+	fa->store_string(text);
 }
-#endif
+
+#endif // TOOLS_ENABLED

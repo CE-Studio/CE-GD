@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  FileSystemDirectoryAccess.kt                                         */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  FilesystemDirectoryAccess.kt                                          */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 package org.godotengine.godot.io.directory
 
@@ -54,6 +54,7 @@ internal class FilesystemDirectoryAccess(private val context: Context):
 
 	private data class DirData(val dirFile: File, val files: Array<File>, var current: Int = 0)
 
+	private val storageScopeIdentifier = StorageScope.Identifier(context)
 	private val storageManager = context.getSystemService(Context.STORAGE_SERVICE) as StorageManager
 	private var lastDirId = STARTING_DIR_ID
 	private val dirs = SparseArray<DirData>()
@@ -62,7 +63,7 @@ internal class FilesystemDirectoryAccess(private val context: Context):
 		// Directory access is available for shared storage on Android 11+
 		// On Android 10, access is also available as long as the `requestLegacyExternalStorage`
 		// tag is available.
-		return StorageScope.getStorageScope(context, path) != StorageScope.UNKNOWN
+		return storageScopeIdentifier.identifyStorageScope(path) != StorageScope.UNKNOWN
 	}
 
 	override fun hasDirId(dirId: Int) = dirs.indexOfKey(dirId) >= 0
@@ -102,7 +103,7 @@ internal class FilesystemDirectoryAccess(private val context: Context):
 		}
 	}
 
-	override fun fileExists(path: String) = FileAccessHandler.fileExists(context, path)
+	override fun fileExists(path: String) = FileAccessHandler.fileExists(context, storageScopeIdentifier, path)
 
 	override fun dirNext(dirId: Int): String {
 		val dirData = dirs[dirId]
@@ -199,7 +200,7 @@ internal class FilesystemDirectoryAccess(private val context: Context):
 			if (fromFile.isDirectory) {
 				fromFile.renameTo(File(to))
 			} else {
-				FileAccessHandler.renameFile(context, from, to)
+				FileAccessHandler.renameFile(context, storageScopeIdentifier, from, to)
 			}
 		} catch (e: SecurityException) {
 			false
@@ -218,7 +219,7 @@ internal class FilesystemDirectoryAccess(private val context: Context):
 				if (deleteFile.isDirectory) {
 					deleteFile.delete()
 				} else {
-					FileAccessHandler.removeFile(context, filename)
+					FileAccessHandler.removeFile(context, storageScopeIdentifier, filename)
 				}
 			} else {
 				true

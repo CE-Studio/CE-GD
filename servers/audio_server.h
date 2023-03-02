@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  audio_server.h                                                       */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  audio_server.h                                                        */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #ifndef AUDIO_SERVER_H
 #define AUDIO_SERVER_H
@@ -43,7 +43,7 @@
 
 class AudioDriverDummy;
 class AudioStream;
-class AudioStreamSample;
+class AudioStreamWAV;
 class AudioStreamPlayback;
 
 class AudioDriver {
@@ -88,26 +88,32 @@ public:
 	static AudioDriver *get_singleton();
 	void set_singleton();
 
+	// Virtual API to implement.
+
 	virtual const char *get_name() const = 0;
 
 	virtual Error init() = 0;
 	virtual void start() = 0;
 	virtual int get_mix_rate() const = 0;
 	virtual SpeakerMode get_speaker_mode() const = 0;
-	virtual Array get_device_list();
-	virtual String get_device();
-	virtual void set_device(String device) {}
+	virtual float get_latency() { return 0; }
+
 	virtual void lock() = 0;
 	virtual void unlock() = 0;
 	virtual void finish() = 0;
 
-	virtual Error capture_start() { return FAILED; }
-	virtual Error capture_stop() { return FAILED; }
-	virtual void capture_set_device(const String &p_name) {}
-	virtual String capture_get_device() { return "Default"; }
-	virtual Array capture_get_device_list(); // TODO: convert this and get_device_list to PackedStringArray
+	virtual PackedStringArray get_output_device_list();
+	virtual String get_output_device();
+	virtual void set_output_device(const String &p_name) {}
 
-	virtual float get_latency() { return 0; }
+	virtual Error input_start() { return FAILED; }
+	virtual Error input_stop() { return FAILED; }
+
+	virtual PackedStringArray get_input_device_list();
+	virtual String get_input_device() { return "Default"; }
+	virtual void set_input_device(const String &p_name) {}
+
+	//
 
 	SpeakerMode get_speaker_mode_by_total_channels(int p_channels) const;
 	int get_total_channels_by_speaker_mode(SpeakerMode) const;
@@ -186,6 +192,8 @@ private:
 	int to_mix = 0;
 
 	float playback_speed_scale = 1.0f;
+
+	bool tag_used_audio_streams = false;
 
 	struct Bus {
 		StringName name;
@@ -380,6 +388,7 @@ public:
 	bool is_playback_paused(Ref<AudioStreamPlayback> p_playback);
 
 	uint64_t get_mix_count() const;
+	uint64_t get_mixed_frames() const;
 
 	void notify_listener_changed();
 
@@ -416,13 +425,15 @@ public:
 	void set_bus_layout(const Ref<AudioBusLayout> &p_bus_layout);
 	Ref<AudioBusLayout> generate_bus_layout() const;
 
-	Array get_device_list();
-	String get_device();
-	void set_device(String device);
+	PackedStringArray get_output_device_list();
+	String get_output_device();
+	void set_output_device(const String &p_name);
 
-	Array capture_get_device_list();
-	String capture_get_device();
-	void capture_set_device(const String &p_name);
+	PackedStringArray get_input_device_list();
+	String get_input_device();
+	void set_input_device(const String &p_name);
+
+	void set_enable_tagging_used_audio_streams(bool p_enable);
 
 	AudioServer();
 	virtual ~AudioServer();

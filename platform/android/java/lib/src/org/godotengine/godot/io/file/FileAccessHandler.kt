@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  FileAccessHandler.kt                                                 */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  FileAccessHandler.kt                                                  */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 package org.godotengine.godot.io.file
 
@@ -49,8 +49,8 @@ class FileAccessHandler(val context: Context) {
 		private const val INVALID_FILE_ID = 0
 		private const val STARTING_FILE_ID = 1
 
-		fun fileExists(context: Context, path: String?): Boolean {
-			val storageScope = StorageScope.getStorageScope(context, path)
+		internal fun fileExists(context: Context, storageScopeIdentifier: StorageScope.Identifier, path: String?): Boolean {
+			val storageScope = storageScopeIdentifier.identifyStorageScope(path)
 			if (storageScope == StorageScope.UNKNOWN) {
 				return false
 			}
@@ -62,8 +62,8 @@ class FileAccessHandler(val context: Context) {
 			}
 		}
 
-		fun removeFile(context: Context, path: String?): Boolean {
-			val storageScope = StorageScope.getStorageScope(context, path)
+		internal fun removeFile(context: Context, storageScopeIdentifier: StorageScope.Identifier, path: String?): Boolean {
+			val storageScope = storageScopeIdentifier.identifyStorageScope(path)
 			if (storageScope == StorageScope.UNKNOWN) {
 				return false
 			}
@@ -75,8 +75,8 @@ class FileAccessHandler(val context: Context) {
 			}
 		}
 
-		fun renameFile(context: Context, from: String?, to: String?): Boolean {
-			val storageScope = StorageScope.getStorageScope(context, from)
+		internal fun renameFile(context: Context, storageScopeIdentifier: StorageScope.Identifier, from: String?, to: String?): Boolean {
+			val storageScope = storageScopeIdentifier.identifyStorageScope(from)
 			if (storageScope == StorageScope.UNKNOWN) {
 				return false
 			}
@@ -89,13 +89,14 @@ class FileAccessHandler(val context: Context) {
 		}
 	}
 
+	private val storageScopeIdentifier = StorageScope.Identifier(context)
 	private val files = SparseArray<DataAccess>()
 	private var lastFileId = STARTING_FILE_ID
 
 	private fun hasFileId(fileId: Int) = files.indexOfKey(fileId) >= 0
 
 	fun fileOpen(path: String?, modeFlags: Int): Int {
-		val storageScope = StorageScope.getStorageScope(context, path)
+		val storageScope = storageScopeIdentifier.identifyStorageScope(path)
 		if (storageScope == StorageScope.UNKNOWN) {
 			return INVALID_FILE_ID
 		}
@@ -162,10 +163,10 @@ class FileAccessHandler(val context: Context) {
 		files[fileId].flush()
 	}
 
-	fun fileExists(path: String?) = Companion.fileExists(context, path)
+	fun fileExists(path: String?) = Companion.fileExists(context, storageScopeIdentifier, path)
 
 	fun fileLastModified(filepath: String?): Long {
-		val storageScope = StorageScope.getStorageScope(context, filepath)
+		val storageScope = storageScopeIdentifier.identifyStorageScope(filepath)
 		if (storageScope == StorageScope.UNKNOWN) {
 			return 0L
 		}
@@ -191,6 +192,11 @@ class FileAccessHandler(val context: Context) {
 		}
 
 		return files[fileId].endOfFile
+	}
+
+	fun setFileEof(fileId: Int, eof: Boolean) {
+		val file = files[fileId] ?: return
+		file.endOfFile = eof
 	}
 
 	fun fileClose(fileId: Int) {

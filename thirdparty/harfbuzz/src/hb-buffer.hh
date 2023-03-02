@@ -32,6 +32,7 @@
 
 #include "hb.hh"
 #include "hb-unicode.hh"
+#include "hb-set-digest.hh"
 
 
 #ifndef HB_BUFFER_MAX_LEN_FACTOR
@@ -207,6 +208,14 @@ struct hb_buffer_t
   hb_glyph_info_t &prev ()      { return out_info[out_len ? out_len - 1 : 0]; }
   hb_glyph_info_t prev () const { return out_info[out_len ? out_len - 1 : 0]; }
 
+  hb_set_digest_t digest () const
+  {
+    hb_set_digest_t d;
+    d.init ();
+    d.add_array (&info[0].codepoint, len, sizeof (info[0]));
+    return d;
+  }
+
   HB_INTERNAL void similar (const hb_buffer_t &src);
   HB_INTERNAL void reset ();
   HB_INTERNAL void clear ();
@@ -288,7 +297,8 @@ struct hb_buffer_t
 
   HB_INTERNAL void guess_segment_properties ();
 
-  HB_INTERNAL void sync ();
+  HB_INTERNAL bool sync ();
+  HB_INTERNAL int sync_so_far ();
   HB_INTERNAL void clear_output ();
   HB_INTERNAL void clear_positions ();
 
@@ -401,6 +411,8 @@ struct hb_buffer_t
   HB_INTERNAL void merge_out_clusters (unsigned int start, unsigned int end);
   /* Merge clusters for deleting current glyph, and skip it. */
   HB_INTERNAL void delete_glyph ();
+  HB_INTERNAL void delete_glyphs_inplace (bool (*filter) (const hb_glyph_info_t *info));
+
 
 
   /* Adds glyph flags in mask to infos with clusters between start and end.
@@ -458,6 +470,17 @@ struct hb_buffer_t
   void unsafe_to_break (unsigned int start = 0, unsigned int end = -1)
   {
     _set_glyph_flags (HB_GLYPH_FLAG_UNSAFE_TO_BREAK | HB_GLYPH_FLAG_UNSAFE_TO_CONCAT,
+		      start, end,
+		      true);
+  }
+  void safe_to_insert_tatweel (unsigned int start = 0, unsigned int end = -1)
+  {
+    if ((flags & HB_BUFFER_FLAG_PRODUCE_SAFE_TO_INSERT_TATWEEL) == 0)
+    {
+      unsafe_to_break (start, end);
+      return;
+    }
+    _set_glyph_flags (HB_GLYPH_FLAG_SAFE_TO_INSERT_TATWEEL,
 		      start, end,
 		      true);
   }
@@ -555,14 +578,10 @@ struct hb_buffer_t
     if (likely (!messaging ()))
       return true;
 
-    message_depth++;
-
     va_list ap;
     va_start (ap, fmt);
     bool ret = message_impl (font, fmt, ap);
     va_end (ap);
-
-    message_depth--;
 
     return ret;
 #endif

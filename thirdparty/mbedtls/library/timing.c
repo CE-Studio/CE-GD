@@ -19,12 +19,7 @@
 
 #include "common.h"
 
-#if defined(MBEDTLS_SELF_TEST) && defined(MBEDTLS_PLATFORM_C)
 #include "mbedtls/platform.h"
-#else
-#include <stdio.h>
-#define mbedtls_printf     printf
-#endif
 
 #if defined(MBEDTLS_TIMING_C)
 
@@ -195,8 +190,10 @@ unsigned long mbedtls_timing_hardclock( void )
 #endif /* !HAVE_HARDCLOCK && MBEDTLS_HAVE_ASM &&
           __GNUC__ && __ia64__ */
 
-#if !defined(HAVE_HARDCLOCK) && defined(_MSC_VER) && \
+// -- GODOT start --
+#if !defined(HAVE_HARDCLOCK) && defined(_WIN32) && \
     !defined(EFIX64) && !defined(EFI32)
+// -- GODOT end --
 
 #define HAVE_HARDCLOCK
 
@@ -267,7 +264,7 @@ static void TimerProc( void *TimerContext )
     Sleep( alarmMs );
     mbedtls_timing_alarmed = 1;
     /* _endthread will be called implicitly on return
-     * That ensures execution of thread funcition's epilogue */
+     * That ensures execution of thread function's epilogue */
 }
 
 void mbedtls_set_alarm( int seconds )

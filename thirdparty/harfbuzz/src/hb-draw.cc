@@ -80,6 +80,56 @@ hb_draw_close_path_nil (hb_draw_funcs_t *dfuncs HB_UNUSED, void *draw_data HB_UN
 			void *user_data HB_UNUSED) {}
 
 
+static bool
+_hb_draw_funcs_set_preamble (hb_draw_funcs_t    *dfuncs,
+			     bool                func_is_null,
+			     void              **user_data,
+			     hb_destroy_func_t  *destroy)
+{
+  if (hb_object_is_immutable (dfuncs))
+  {
+    if (*destroy)
+      (*destroy) (*user_data);
+    return false;
+  }
+
+  if (func_is_null)
+  {
+    if (*destroy)
+      (*destroy) (*user_data);
+    *destroy = nullptr;
+    *user_data = nullptr;
+  }
+
+  return true;
+}
+
+static bool
+_hb_draw_funcs_set_middle (hb_draw_funcs_t   *dfuncs,
+			   void              *user_data,
+			   hb_destroy_func_t  destroy)
+{
+  if (user_data && !dfuncs->user_data)
+  {
+    dfuncs->user_data = (decltype (dfuncs->user_data)) hb_calloc (1, sizeof (*dfuncs->user_data));
+    if (unlikely (!dfuncs->user_data))
+      goto fail;
+  }
+  if (destroy && !dfuncs->destroy)
+  {
+    dfuncs->destroy = (decltype (dfuncs->destroy)) hb_calloc (1, sizeof (*dfuncs->destroy));
+    if (unlikely (!dfuncs->destroy))
+      goto fail;
+  }
+
+  return true;
+
+fail:
+  if (destroy)
+    (destroy) (user_data);
+  return false;
+}
+
 #define HB_DRAW_FUNC_IMPLEMENT(name)						\
 										\
 void										\
@@ -88,42 +138,24 @@ hb_draw_funcs_set_##name##_func (hb_draw_funcs_t	 *dfuncs,		\
 				 void			 *user_data,		\
 				 hb_destroy_func_t	  destroy)		\
 {										\
-  if (hb_object_is_immutable (dfuncs))						\
-    return;									\
+  if (!_hb_draw_funcs_set_preamble (dfuncs, !func, &user_data, &destroy))\
+      return;                                                            \
 										\
   if (dfuncs->destroy && dfuncs->destroy->name)					\
     dfuncs->destroy->name (!dfuncs->user_data ? nullptr : dfuncs->user_data->name); \
 									 \
-  if (user_data && !dfuncs->user_data)                                   \
-  {                                                                      \
-    dfuncs->user_data = (decltype (dfuncs->user_data)) hb_calloc (1, sizeof (*dfuncs->user_data)); \
-    if (unlikely (!dfuncs->user_data))                                   \
-      goto fail;                                                         \
-  }                                                                      \
-  if (destroy && !dfuncs->destroy)                                       \
-  {                                                                      \
-    dfuncs->destroy = (decltype (dfuncs->destroy)) hb_calloc (1, sizeof (*dfuncs->destroy)); \
-    if (unlikely (!dfuncs->destroy))                                     \
-      goto fail;                                                         \
-  }                                                                      \
+  if (!_hb_draw_funcs_set_middle (dfuncs, user_data, destroy))           \
+      return;                                                            \
 									\
-  if (func) {								\
+  if (func)								\
     dfuncs->func.name = func;						\
-    if (dfuncs->user_data)						\
-      dfuncs->user_data->name = user_data;				\
-    if (dfuncs->destroy)						\
-      dfuncs->destroy->name = destroy;					\
-  } else {								\
+  else									\
     dfuncs->func.name = hb_draw_##name##_nil;				\
-    if (dfuncs->user_data)						\
-      dfuncs->user_data->name = nullptr;				\
-    if (dfuncs->destroy)						\
-      dfuncs->destroy->name = nullptr;					\
-  }									\
-                                                                         \
-fail:                                                                    \
-  if (destroy)                                                           \
-    destroy (user_data);                                                 \
+									\
+  if (dfuncs->user_data)						\
+    dfuncs->user_data->name = user_data;				\
+  if (dfuncs->destroy)							\
+    dfuncs->destroy->name = destroy;					\
 }
 
 HB_DRAW_FUNCS_IMPLEMENT_CALLBACKS
@@ -137,7 +169,7 @@ HB_DRAW_FUNCS_IMPLEMENT_CALLBACKS
  * Return value: (transfer full):
  * A newly allocated #hb_draw_funcs_t with a reference count of 1. The initial
  * reference count should be released with hb_draw_funcs_destroy when you are
- * done using the #hb_draw_funcs_t. This function never returns %NULL. If
+ * done using the #hb_draw_funcs_t. This function never returns `NULL`. If
  * memory cannot be allocated, a special singleton #hb_draw_funcs_t object will
  * be returned.
  *
@@ -208,6 +240,9 @@ hb_draw_funcs_destroy (hb_draw_funcs_t *dfuncs)
 #undef HB_DRAW_FUNC_IMPLEMENT
   }
 
+  hb_free (dfuncs->destroy);
+  hb_free (dfuncs->user_data);
+
   hb_free (dfuncs);
 }
 
@@ -234,7 +269,7 @@ hb_draw_funcs_make_immutable (hb_draw_funcs_t *dfuncs)
  *
  * Checks whether @dfuncs is immutable.
  *
- * Return value: %true if @dfuncs is immutable, %false otherwise
+ * Return value: `true` if @dfuncs is immutable, `false` otherwise
  *
  * Since: 4.0.0
  **/

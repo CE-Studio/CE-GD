@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  editor_asset_installer.cpp                                           */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  editor_asset_installer.cpp                                            */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "editor_asset_installer.h"
 
@@ -100,8 +100,8 @@ void EditorAssetInstaller::open(const String &p_path, int p_depth) {
 		extension_guess["tga"] = tree->get_theme_icon(SNAME("ImageTexture"), SNAME("EditorIcons"));
 		extension_guess["webp"] = tree->get_theme_icon(SNAME("ImageTexture"), SNAME("EditorIcons"));
 
-		extension_guess["wav"] = tree->get_theme_icon(SNAME("AudioStreamSample"), SNAME("EditorIcons"));
-		extension_guess["ogg"] = tree->get_theme_icon(SNAME("AudioStreamOGGVorbis"), SNAME("EditorIcons"));
+		extension_guess["wav"] = tree->get_theme_icon(SNAME("AudioStreamWAV"), SNAME("EditorIcons"));
+		extension_guess["ogg"] = tree->get_theme_icon(SNAME("AudioStreamOggVorbis"), SNAME("EditorIcons"));
 		extension_guess["mp3"] = tree->get_theme_icon(SNAME("AudioStreamMP3"), SNAME("EditorIcons"));
 
 		extension_guess["scn"] = tree->get_theme_icon(SNAME("PackedScene"), SNAME("EditorIcons"));
@@ -112,6 +112,7 @@ void EditorAssetInstaller::open(const String &p_path, int p_depth) {
 		extension_guess["glb"] = tree->get_theme_icon(SNAME("PackedScene"), SNAME("EditorIcons"));
 
 		extension_guess["gdshader"] = tree->get_theme_icon(SNAME("Shader"), SNAME("EditorIcons"));
+		extension_guess["gdshaderinc"] = tree->get_theme_icon(SNAME("TextFile"), SNAME("EditorIcons"));
 		extension_guess["gd"] = tree->get_theme_icon(SNAME("GDScript"), SNAME("EditorIcons"));
 		if (Engine::get_singleton()->has_singleton("GodotSharp")) {
 			extension_guess["cs"] = tree->get_theme_icon(SNAME("CSharpScript"), SNAME("EditorIcons"));
@@ -119,7 +120,6 @@ void EditorAssetInstaller::open(const String &p_path, int p_depth) {
 			// Mark C# support as unavailable.
 			extension_guess["cs"] = tree->get_theme_icon(SNAME("ImportFail"), SNAME("EditorIcons"));
 		}
-		extension_guess["vs"] = tree->get_theme_icon(SNAME("VisualScript"), SNAME("EditorIcons"));
 
 		extension_guess["res"] = tree->get_theme_icon(SNAME("Resource"), SNAME("EditorIcons"));
 		extension_guess["tres"] = tree->get_theme_icon(SNAME("Resource"), SNAME("EditorIcons"));
@@ -182,16 +182,16 @@ void EditorAssetInstaller::open(const String &p_path, int p_depth) {
 
 		int pp = path.rfind("/");
 
-		TreeItem *parent;
+		TreeItem *parent_item;
 		if (pp == -1) {
-			parent = root;
+			parent_item = root;
 		} else {
 			String ppath = path.substr(0, pp);
 			ERR_CONTINUE(!dir_map.has(ppath));
-			parent = dir_map[ppath];
+			parent_item = dir_map[ppath];
 		}
 
-		TreeItem *ti = tree->create_item(parent);
+		TreeItem *ti = tree->create_item(parent_item);
 		ti->set_cell_mode(0, TreeItem::CELL_MODE_CHECK);
 		ti->set_checked(0, true);
 		ti->set_editable(0, true);
@@ -214,11 +214,11 @@ void EditorAssetInstaller::open(const String &p_path, int p_depth) {
 			if (FileAccess::exists(res_path)) {
 				num_file_conflicts += 1;
 				ti->set_custom_color(0, tree->get_theme_color(SNAME("error_color"), SNAME("Editor")));
-				ti->set_tooltip(0, vformat(TTR("%s (already exists)"), res_path));
+				ti->set_tooltip_text(0, vformat(TTR("%s (already exists)"), res_path));
 				ti->set_checked(0, false);
 				ti->propagate_check(0);
 			} else {
-				ti->set_tooltip(0, res_path);
+				ti->set_tooltip_text(0, res_path);
 			}
 
 			ti->set_metadata(0, res_path);
@@ -283,17 +283,17 @@ void EditorAssetInstaller::ok_pressed() {
 				Ref<DirAccess> da = DirAccess::create(DirAccess::ACCESS_RESOURCES);
 				da->make_dir(dirpath);
 			} else {
-				Vector<uint8_t> data;
-				data.resize(info.uncompressed_size);
+				Vector<uint8_t> uncomp_data;
+				uncomp_data.resize(info.uncompressed_size);
 
 				//read
 				unzOpenCurrentFile(pkg);
-				unzReadCurrentFile(pkg, data.ptrw(), data.size());
+				unzReadCurrentFile(pkg, uncomp_data.ptrw(), uncomp_data.size());
 				unzCloseCurrentFile(pkg);
 
 				Ref<FileAccess> f = FileAccess::open(path, FileAccess::WRITE);
 				if (f.is_valid()) {
-					f->store_buffer(data.ptr(), data.size());
+					f->store_buffer(uncomp_data.ptr(), uncomp_data.size());
 				} else {
 					failed_files.push_back(path);
 				}

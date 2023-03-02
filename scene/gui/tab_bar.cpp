@@ -1,32 +1,32 @@
-/*************************************************************************/
-/*  tab_bar.cpp                                                          */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2022 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2022 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+/**************************************************************************/
+/*  tab_bar.cpp                                                           */
+/**************************************************************************/
+/*                         This file is part of:                          */
+/*                             GODOT ENGINE                               */
+/*                        https://godotengine.org                         */
+/**************************************************************************/
+/* Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md). */
+/* Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.                  */
+/*                                                                        */
+/* Permission is hereby granted, free of charge, to any person obtaining  */
+/* a copy of this software and associated documentation files (the        */
+/* "Software"), to deal in the Software without restriction, including    */
+/* without limitation the rights to use, copy, modify, merge, publish,    */
+/* distribute, sublicense, and/or sell copies of the Software, and to     */
+/* permit persons to whom the Software is furnished to do so, subject to  */
+/* the following conditions:                                              */
+/*                                                                        */
+/* The above copyright notice and this permission notice shall be         */
+/* included in all copies or substantial portions of the Software.        */
+/*                                                                        */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,        */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF     */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. */
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY   */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,   */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE      */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
+/**************************************************************************/
 
 #include "tab_bar.h"
 
@@ -44,14 +44,7 @@ Size2 TabBar::get_minimum_size() const {
 		return ms;
 	}
 
-	Ref<StyleBox> tab_unselected = get_theme_stylebox(SNAME("tab_unselected"));
-	Ref<StyleBox> tab_selected = get_theme_stylebox(SNAME("tab_selected"));
-	Ref<StyleBox> tab_disabled = get_theme_stylebox(SNAME("tab_disabled"));
-	Ref<StyleBox> button_highlight = get_theme_stylebox(SNAME("button_highlight"));
-	Ref<Texture2D> close = get_theme_icon(SNAME("close"));
-	int hseparation = get_theme_constant(SNAME("h_separation"));
-
-	int y_margin = MAX(MAX(tab_unselected->get_minimum_size().height, tab_selected->get_minimum_size().height), tab_disabled->get_minimum_size().height);
+	int y_margin = MAX(MAX(theme_cache.tab_unselected_style->get_minimum_size().height, theme_cache.tab_selected_style->get_minimum_size().height), theme_cache.tab_disabled_style->get_minimum_size().height);
 
 	for (int i = 0; i < tabs.size(); i++) {
 		if (tabs[i].hidden) {
@@ -62,22 +55,22 @@ Size2 TabBar::get_minimum_size() const {
 
 		Ref<StyleBox> style;
 		if (tabs[i].disabled) {
-			style = tab_disabled;
+			style = theme_cache.tab_disabled_style;
 		} else if (current == i) {
-			style = tab_selected;
+			style = theme_cache.tab_selected_style;
 		} else {
-			style = tab_unselected;
+			style = theme_cache.tab_unselected_style;
 		}
 		ms.width += style->get_minimum_size().width;
 
 		Ref<Texture2D> tex = tabs[i].icon;
 		if (tex.is_valid()) {
 			ms.height = MAX(ms.height, tex->get_size().height + y_margin);
-			ms.width += tex->get_size().width + hseparation;
+			ms.width += tex->get_size().width + theme_cache.h_separation;
 		}
 
 		if (!tabs[i].text.is_empty()) {
-			ms.width += tabs[i].size_text + hseparation;
+			ms.width += tabs[i].size_text + theme_cache.h_separation;
 		}
 		ms.height = MAX(ms.height, tabs[i].text_buf->get_size().y + y_margin);
 
@@ -87,22 +80,22 @@ Size2 TabBar::get_minimum_size() const {
 			Ref<Texture2D> rb = tabs[i].right_button;
 
 			if (close_visible) {
-				ms.width += button_highlight->get_minimum_size().width + rb->get_width();
+				ms.width += theme_cache.button_hl_style->get_minimum_size().width + rb->get_width();
 			} else {
-				ms.width += button_highlight->get_margin(SIDE_LEFT) + rb->get_width() + hseparation;
+				ms.width += theme_cache.button_hl_style->get_margin(SIDE_LEFT) + rb->get_width() + theme_cache.h_separation;
 			}
 
 			ms.height = MAX(ms.height, rb->get_height() + y_margin);
 		}
 
 		if (close_visible) {
-			ms.width += button_highlight->get_margin(SIDE_LEFT) + close->get_width() + hseparation;
+			ms.width += theme_cache.button_hl_style->get_margin(SIDE_LEFT) + theme_cache.close_icon->get_width() + theme_cache.h_separation;
 
-			ms.height = MAX(ms.height, close->get_height() + y_margin);
+			ms.height = MAX(ms.height, theme_cache.close_icon->get_height() + y_margin);
 		}
 
 		if (ms.width - ofs > style->get_minimum_size().width) {
-			ms.width -= hseparation;
+			ms.width -= theme_cache.h_separation;
 		}
 	}
 
@@ -122,49 +115,48 @@ void TabBar::gui_input(const Ref<InputEvent> &p_event) {
 		Point2 pos = mm->get_position();
 
 		if (buttons_visible) {
-			Ref<Texture2D> incr = get_theme_icon(SNAME("increment"));
-			Ref<Texture2D> decr = get_theme_icon(SNAME("decrement"));
-
 			if (is_layout_rtl()) {
-				if (pos.x < decr->get_width()) {
+				if (pos.x < theme_cache.decrement_icon->get_width()) {
 					if (highlight_arrow != 1) {
 						highlight_arrow = 1;
-						update();
+						queue_redraw();
 					}
-				} else if (pos.x < incr->get_width() + decr->get_width()) {
+				} else if (pos.x < theme_cache.increment_icon->get_width() + theme_cache.decrement_icon->get_width()) {
 					if (highlight_arrow != 0) {
 						highlight_arrow = 0;
-						update();
+						queue_redraw();
 					}
 				} else if (highlight_arrow != -1) {
 					highlight_arrow = -1;
-					update();
+					queue_redraw();
 				}
 			} else {
-				int limit_minus_buttons = get_size().width - incr->get_width() - decr->get_width();
-				if (pos.x > limit_minus_buttons + decr->get_width()) {
+				int limit_minus_buttons = get_size().width - theme_cache.increment_icon->get_width() - theme_cache.decrement_icon->get_width();
+				if (pos.x > limit_minus_buttons + theme_cache.decrement_icon->get_width()) {
 					if (highlight_arrow != 1) {
 						highlight_arrow = 1;
-						update();
+						queue_redraw();
 					}
 				} else if (pos.x > limit_minus_buttons) {
 					if (highlight_arrow != 0) {
 						highlight_arrow = 0;
-						update();
+						queue_redraw();
 					}
 				} else if (highlight_arrow != -1) {
 					highlight_arrow = -1;
-					update();
+					queue_redraw();
 				}
 			}
 		}
 
 		if (get_viewport()->gui_is_dragging() && can_drop_data(pos, get_viewport()->gui_get_drag_data())) {
 			dragging_valid_tab = true;
-			update();
+			queue_redraw();
 		}
 
-		_update_hover();
+		if (!tabs.is_empty()) {
+			_update_hover();
+		}
 
 		return;
 	}
@@ -172,22 +164,22 @@ void TabBar::gui_input(const Ref<InputEvent> &p_event) {
 	Ref<InputEventMouseButton> mb = p_event;
 
 	if (mb.is_valid()) {
-		if (mb->is_pressed() && mb->get_button_index() == MouseButton::WHEEL_UP && !mb->is_command_pressed()) {
+		if (mb->is_pressed() && mb->get_button_index() == MouseButton::WHEEL_UP && !mb->is_command_or_control_pressed()) {
 			if (scrolling_enabled && buttons_visible) {
 				if (offset > 0) {
 					offset--;
 					_update_cache();
-					update();
+					queue_redraw();
 				}
 			}
 		}
 
-		if (mb->is_pressed() && mb->get_button_index() == MouseButton::WHEEL_DOWN && !mb->is_command_pressed()) {
+		if (mb->is_pressed() && mb->get_button_index() == MouseButton::WHEEL_DOWN && !mb->is_command_or_control_pressed()) {
 			if (scrolling_enabled && buttons_visible) {
 				if (missing_right && offset < tabs.size()) {
 					offset++;
 					_update_cache();
-					update();
+					queue_redraw();
 				}
 			}
 		}
@@ -198,7 +190,7 @@ void TabBar::gui_input(const Ref<InputEvent> &p_event) {
 			}
 
 			rb_pressing = false;
-			update();
+			queue_redraw();
 		}
 
 		if (cb_pressing && !mb->is_pressed() && mb->get_button_index() == MouseButton::LEFT) {
@@ -207,46 +199,43 @@ void TabBar::gui_input(const Ref<InputEvent> &p_event) {
 			}
 
 			cb_pressing = false;
-			update();
+			queue_redraw();
 		}
 
 		if (mb->is_pressed() && (mb->get_button_index() == MouseButton::LEFT || (select_with_rmb && mb->get_button_index() == MouseButton::RIGHT))) {
 			Point2 pos = mb->get_position();
 
 			if (buttons_visible) {
-				Ref<Texture2D> incr = get_theme_icon(SNAME("increment"));
-				Ref<Texture2D> decr = get_theme_icon(SNAME("decrement"));
-
 				if (is_layout_rtl()) {
-					if (pos.x < decr->get_width()) {
+					if (pos.x < theme_cache.decrement_icon->get_width()) {
 						if (missing_right) {
 							offset++;
 							_update_cache();
-							update();
+							queue_redraw();
 						}
 						return;
-					} else if (pos.x < incr->get_width() + decr->get_width()) {
+					} else if (pos.x < theme_cache.increment_icon->get_width() + theme_cache.decrement_icon->get_width()) {
 						if (offset > 0) {
 							offset--;
 							_update_cache();
-							update();
+							queue_redraw();
 						}
 						return;
 					}
 				} else {
-					int limit = get_size().width - incr->get_width() - decr->get_width();
-					if (pos.x > limit + decr->get_width()) {
+					int limit = get_size().width - theme_cache.increment_icon->get_width() - theme_cache.decrement_icon->get_width();
+					if (pos.x > limit + theme_cache.decrement_icon->get_width()) {
 						if (missing_right) {
 							offset++;
 							_update_cache();
-							update();
+							queue_redraw();
 						}
 						return;
 					} else if (pos.x > limit) {
 						if (offset > 0) {
 							offset--;
 							_update_cache();
-							update();
+							queue_redraw();
 						}
 						return;
 					}
@@ -266,13 +255,13 @@ void TabBar::gui_input(const Ref<InputEvent> &p_event) {
 
 				if (tabs[i].rb_rect.has_point(pos)) {
 					rb_pressing = true;
-					update();
+					queue_redraw();
 					return;
 				}
 
 				if (tabs[i].cb_rect.has_point(pos) && (cb_displaypolicy == CLOSE_BUTTON_SHOW_ALWAYS || (cb_displaypolicy == CLOSE_BUTTON_SHOW_ACTIVE_ONLY && i == current))) {
 					cb_pressing = true;
-					update();
+					queue_redraw();
 					return;
 				}
 
@@ -299,9 +288,6 @@ void TabBar::gui_input(const Ref<InputEvent> &p_event) {
 }
 
 void TabBar::_shape(int p_tab) {
-	Ref<Font> font = get_theme_font(SNAME("font"));
-	int font_size = get_theme_font_size(SNAME("font_size"));
-
 	tabs.write[p_tab].xl_text = atr(tabs[p_tab].text);
 	tabs.write[p_tab].text_buf->clear();
 	tabs.write[p_tab].text_buf->set_width(-1);
@@ -311,13 +297,43 @@ void TabBar::_shape(int p_tab) {
 		tabs.write[p_tab].text_buf->set_direction((TextServer::Direction)tabs[p_tab].text_direction);
 	}
 
-	tabs.write[p_tab].text_buf->add_string(tabs[p_tab].xl_text, font, font_size, tabs[p_tab].language);
+	tabs.write[p_tab].text_buf->add_string(tabs[p_tab].xl_text, theme_cache.font, theme_cache.font_size, tabs[p_tab].language);
+}
+
+void TabBar::_update_theme_item_cache() {
+	Control::_update_theme_item_cache();
+
+	theme_cache.h_separation = get_theme_constant(SNAME("h_separation"));
+
+	theme_cache.tab_unselected_style = get_theme_stylebox(SNAME("tab_unselected"));
+	theme_cache.tab_selected_style = get_theme_stylebox(SNAME("tab_selected"));
+	theme_cache.tab_disabled_style = get_theme_stylebox(SNAME("tab_disabled"));
+
+	theme_cache.increment_icon = get_theme_icon(SNAME("increment"));
+	theme_cache.increment_hl_icon = get_theme_icon(SNAME("increment_highlight"));
+	theme_cache.decrement_icon = get_theme_icon(SNAME("decrement"));
+	theme_cache.decrement_hl_icon = get_theme_icon(SNAME("decrement_highlight"));
+	theme_cache.drop_mark_icon = get_theme_icon(SNAME("drop_mark"));
+	theme_cache.drop_mark_color = get_theme_color(SNAME("drop_mark_color"));
+
+	theme_cache.font = get_theme_font(SNAME("font"));
+	theme_cache.font_size = get_theme_font_size(SNAME("font_size"));
+	theme_cache.outline_size = get_theme_constant(SNAME("outline_size"));
+
+	theme_cache.font_selected_color = get_theme_color(SNAME("font_selected_color"));
+	theme_cache.font_unselected_color = get_theme_color(SNAME("font_unselected_color"));
+	theme_cache.font_disabled_color = get_theme_color(SNAME("font_disabled_color"));
+	theme_cache.font_outline_color = get_theme_color(SNAME("font_outline_color"));
+
+	theme_cache.close_icon = get_theme_icon(SNAME("close"));
+	theme_cache.button_pressed_style = get_theme_stylebox(SNAME("button_pressed"));
+	theme_cache.button_hl_style = get_theme_stylebox(SNAME("button_highlight"));
 }
 
 void TabBar::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_LAYOUT_DIRECTION_CHANGED: {
-			update();
+			queue_redraw();
 		} break;
 
 		case NOTIFICATION_THEME_CHANGED:
@@ -325,6 +341,8 @@ void TabBar::_notification(int p_what) {
 			for (int i = 0; i < tabs.size(); ++i) {
 				_shape(i);
 			}
+
+			queue_redraw();
 
 			[[fallthrough]];
 		}
@@ -343,27 +361,25 @@ void TabBar::_notification(int p_what) {
 		case NOTIFICATION_DRAG_END: {
 			if (dragging_valid_tab) {
 				dragging_valid_tab = false;
-				update();
+				queue_redraw();
 			}
 		} break;
 
 		case NOTIFICATION_DRAW: {
+			bool rtl = is_layout_rtl();
+			Vector2 size = get_size();
+
 			if (tabs.is_empty()) {
+				// Draw the drop indicator where the first tab would be if there are no tabs.
+				if (dragging_valid_tab) {
+					int x = rtl ? size.x : 0;
+					theme_cache.drop_mark_icon->draw(get_canvas_item(), Point2(x - (theme_cache.drop_mark_icon->get_width() / 2), (size.height - theme_cache.drop_mark_icon->get_height()) / 2), theme_cache.drop_mark_color);
+				}
+
 				return;
 			}
 
-			Ref<StyleBox> tab_unselected = get_theme_stylebox(SNAME("tab_unselected"));
-			Ref<StyleBox> tab_selected = get_theme_stylebox(SNAME("tab_selected"));
-			Ref<StyleBox> tab_disabled = get_theme_stylebox(SNAME("tab_disabled"));
-			Color font_selected_color = get_theme_color(SNAME("font_selected_color"));
-			Color font_unselected_color = get_theme_color(SNAME("font_unselected_color"));
-			Color font_disabled_color = get_theme_color(SNAME("font_disabled_color"));
-			Ref<Texture2D> incr = get_theme_icon(SNAME("increment"));
-			Ref<Texture2D> decr = get_theme_icon(SNAME("decrement"));
-
-			bool rtl = is_layout_rtl();
-			Vector2 size = get_size();
-			int limit_minus_buttons = size.width - incr->get_width() - decr->get_width();
+			int limit_minus_buttons = size.width - theme_cache.increment_icon->get_width() - theme_cache.decrement_icon->get_width();
 
 			int ofs = tabs[offset].ofs_cache;
 
@@ -378,14 +394,11 @@ void TabBar::_notification(int p_what) {
 					Color col;
 
 					if (tabs[i].disabled) {
-						sb = tab_disabled;
-						col = font_disabled_color;
-					} else if (i == current) {
-						sb = tab_selected;
-						col = font_selected_color;
+						sb = theme_cache.tab_disabled_style;
+						col = theme_cache.font_disabled_color;
 					} else {
-						sb = tab_unselected;
-						col = font_unselected_color;
+						sb = theme_cache.tab_unselected_style;
+						col = theme_cache.font_unselected_color;
 					}
 
 					_draw_tab(sb, col, i, rtl ? size.width - ofs - tabs[i].size_cache : ofs);
@@ -396,41 +409,38 @@ void TabBar::_notification(int p_what) {
 
 			// Draw selected tab in the front, but only if it's visible.
 			if (current >= offset && current <= max_drawn_tab && !tabs[current].hidden) {
-				Ref<StyleBox> sb = tabs[current].disabled ? tab_disabled : tab_selected;
+				Ref<StyleBox> sb = tabs[current].disabled ? theme_cache.tab_disabled_style : theme_cache.tab_selected_style;
 				float x = rtl ? size.width - tabs[current].ofs_cache - tabs[current].size_cache : tabs[current].ofs_cache;
 
-				_draw_tab(sb, font_selected_color, current, x);
+				_draw_tab(sb, theme_cache.font_selected_color, current, x);
 			}
 
 			if (buttons_visible) {
-				Ref<Texture2D> incr_hl = get_theme_icon(SNAME("increment_highlight"));
-				Ref<Texture2D> decr_hl = get_theme_icon(SNAME("decrement_highlight"));
-
-				int vofs = (size.height - incr->get_size().height) / 2;
+				int vofs = (size.height - theme_cache.increment_icon->get_size().height) / 2;
 
 				if (rtl) {
 					if (missing_right) {
-						draw_texture(highlight_arrow == 1 ? decr_hl : decr, Point2(0, vofs));
+						draw_texture(highlight_arrow == 1 ? theme_cache.decrement_hl_icon : theme_cache.decrement_icon, Point2(0, vofs));
 					} else {
-						draw_texture(decr, Point2(0, vofs), Color(1, 1, 1, 0.5));
+						draw_texture(theme_cache.decrement_icon, Point2(0, vofs), Color(1, 1, 1, 0.5));
 					}
 
 					if (offset > 0) {
-						draw_texture(highlight_arrow == 0 ? incr_hl : incr, Point2(incr->get_size().width, vofs));
+						draw_texture(highlight_arrow == 0 ? theme_cache.increment_hl_icon : theme_cache.increment_icon, Point2(theme_cache.increment_icon->get_size().width, vofs));
 					} else {
-						draw_texture(incr, Point2(incr->get_size().width, vofs), Color(1, 1, 1, 0.5));
+						draw_texture(theme_cache.increment_icon, Point2(theme_cache.increment_icon->get_size().width, vofs), Color(1, 1, 1, 0.5));
 					}
 				} else {
 					if (offset > 0) {
-						draw_texture(highlight_arrow == 0 ? decr_hl : decr, Point2(limit_minus_buttons, vofs));
+						draw_texture(highlight_arrow == 0 ? theme_cache.decrement_hl_icon : theme_cache.decrement_icon, Point2(limit_minus_buttons, vofs));
 					} else {
-						draw_texture(decr, Point2(limit_minus_buttons, vofs), Color(1, 1, 1, 0.5));
+						draw_texture(theme_cache.decrement_icon, Point2(limit_minus_buttons, vofs), Color(1, 1, 1, 0.5));
 					}
 
 					if (missing_right) {
-						draw_texture(highlight_arrow == 1 ? incr_hl : incr, Point2(limit_minus_buttons + decr->get_size().width, vofs));
+						draw_texture(highlight_arrow == 1 ? theme_cache.increment_hl_icon : theme_cache.increment_icon, Point2(limit_minus_buttons + theme_cache.decrement_icon->get_size().width, vofs));
 					} else {
-						draw_texture(incr, Point2(limit_minus_buttons + decr->get_size().width, vofs), Color(1, 1, 1, 0.5));
+						draw_texture(theme_cache.increment_icon, Point2(limit_minus_buttons + theme_cache.decrement_icon->get_size().width, vofs), Color(1, 1, 1, 0.5));
 					}
 				}
 			}
@@ -462,10 +472,7 @@ void TabBar::_notification(int p_what) {
 					}
 				}
 
-				Ref<Texture2D> drop_mark = get_theme_icon(SNAME("drop_mark"));
-				Color drop_mark_color = get_theme_color(SNAME("drop_mark_color"));
-
-				drop_mark->draw(get_canvas_item(), Point2(x - drop_mark->get_width() / 2, (size.height - drop_mark->get_height()) / 2), drop_mark_color);
+				theme_cache.drop_mark_icon->draw(get_canvas_item(), Point2(x - theme_cache.drop_mark_icon->get_width() / 2, (size.height - theme_cache.drop_mark_icon->get_height()) / 2), theme_cache.drop_mark_color);
 			}
 		} break;
 	}
@@ -474,10 +481,6 @@ void TabBar::_notification(int p_what) {
 void TabBar::_draw_tab(Ref<StyleBox> &p_tab_style, Color &p_font_color, int p_index, float p_x) {
 	RID ci = get_canvas_item();
 	bool rtl = is_layout_rtl();
-
-	Color font_outline_color = get_theme_color(SNAME("font_outline_color"));
-	int outline_size = get_theme_constant(SNAME("outline_size"));
-	int hseparation = get_theme_constant(SNAME("h_separation"));
 
 	Rect2 sb_rect = Rect2(p_x, 0, tabs[p_index].size_cache, get_size().height);
 	p_tab_style->draw(ci, sb_rect);
@@ -491,7 +494,7 @@ void TabBar::_draw_tab(Ref<StyleBox> &p_tab_style, Color &p_font_color, int p_in
 	if (icon.is_valid()) {
 		icon->draw(ci, Point2i(rtl ? p_x - icon->get_width() : p_x, p_tab_style->get_margin(SIDE_TOP) + ((sb_rect.size.y - sb_ms.y) - icon->get_height()) / 2));
 
-		p_x = rtl ? p_x - icon->get_width() - hseparation : p_x + icon->get_width() + hseparation;
+		p_x = rtl ? p_x - icon->get_width() - theme_cache.h_separation : p_x + icon->get_width() + theme_cache.h_separation;
 	}
 
 	// Draw the text.
@@ -499,17 +502,17 @@ void TabBar::_draw_tab(Ref<StyleBox> &p_tab_style, Color &p_font_color, int p_in
 		Point2i text_pos = Point2i(rtl ? p_x - tabs[p_index].size_text : p_x,
 				p_tab_style->get_margin(SIDE_TOP) + ((sb_rect.size.y - sb_ms.y) - tabs[p_index].text_buf->get_size().y) / 2);
 
-		if (outline_size > 0 && font_outline_color.a > 0) {
-			tabs[p_index].text_buf->draw_outline(ci, text_pos, outline_size, font_outline_color);
+		if (theme_cache.outline_size > 0 && theme_cache.font_outline_color.a > 0) {
+			tabs[p_index].text_buf->draw_outline(ci, text_pos, theme_cache.outline_size, theme_cache.font_outline_color);
 		}
 		tabs[p_index].text_buf->draw(ci, text_pos, p_font_color);
 
-		p_x = rtl ? p_x - tabs[p_index].size_text - hseparation : p_x + tabs[p_index].size_text + hseparation;
+		p_x = rtl ? p_x - tabs[p_index].size_text - theme_cache.h_separation : p_x + tabs[p_index].size_text + theme_cache.h_separation;
 	}
 
 	// Draw and calculate rect of the right button.
 	if (tabs[p_index].right_button.is_valid()) {
-		Ref<StyleBox> style = get_theme_stylebox(SNAME("button_highlight"));
+		Ref<StyleBox> style = theme_cache.button_hl_style;
 		Ref<Texture2D> rb = tabs[p_index].right_button;
 
 		Rect2 rb_rect;
@@ -521,7 +524,7 @@ void TabBar::_draw_tab(Ref<StyleBox> &p_tab_style, Color &p_font_color, int p_in
 
 		if (rb_hover == p_index) {
 			if (rb_pressing) {
-				get_theme_stylebox(SNAME("button_pressed"))->draw(ci, rb_rect);
+				theme_cache.button_pressed_style->draw(ci, rb_rect);
 			} else {
 				style->draw(ci, rb_rect);
 			}
@@ -534,8 +537,8 @@ void TabBar::_draw_tab(Ref<StyleBox> &p_tab_style, Color &p_font_color, int p_in
 
 	// Draw and calculate rect of the close button.
 	if (cb_displaypolicy == CLOSE_BUTTON_SHOW_ALWAYS || (cb_displaypolicy == CLOSE_BUTTON_SHOW_ACTIVE_ONLY && p_index == current)) {
-		Ref<StyleBox> style = get_theme_stylebox(SNAME("button_highlight"));
-		Ref<Texture2D> cb = get_theme_icon(SNAME("close"));
+		Ref<StyleBox> style = theme_cache.button_hl_style;
+		Ref<Texture2D> cb = theme_cache.close_icon;
 
 		Rect2 cb_rect;
 		cb_rect.size = style->get_minimum_size() + cb->get_size();
@@ -546,7 +549,7 @@ void TabBar::_draw_tab(Ref<StyleBox> &p_tab_style, Color &p_font_color, int p_in
 
 		if (!tabs[p_index].disabled && cb_hover == p_index) {
 			if (cb_pressing) {
-				get_theme_stylebox(SNAME("button_pressed"))->draw(ci, cb_rect);
+				theme_cache.button_pressed_style->draw(ci, cb_rect);
 			} else {
 				style->draw(ci, cb_rect);
 			}
@@ -581,7 +584,7 @@ void TabBar::set_tab_count(int p_count) {
 		}
 	}
 
-	update();
+	queue_redraw();
 	update_minimum_size();
 	notify_property_list_changed();
 }
@@ -607,7 +610,7 @@ void TabBar::set_current_tab(int p_current) {
 	if (scroll_to_selected) {
 		ensure_tab_visible(current);
 	}
-	update();
+	queue_redraw();
 
 	emit_signal(SNAME("tab_changed"), p_current);
 }
@@ -634,6 +637,11 @@ bool TabBar::get_offset_buttons_visible() const {
 
 void TabBar::set_tab_title(int p_tab, const String &p_title) {
 	ERR_FAIL_INDEX(p_tab, tabs.size());
+
+	if (tabs[p_tab].text == p_title) {
+		return;
+	}
+
 	tabs.write[p_tab].text = p_title;
 
 	_shape(p_tab);
@@ -642,7 +650,7 @@ void TabBar::set_tab_title(int p_tab, const String &p_title) {
 	if (scroll_to_selected) {
 		ensure_tab_visible(current);
 	}
-	update();
+	queue_redraw();
 	update_minimum_size();
 }
 
@@ -658,7 +666,7 @@ void TabBar::set_tab_text_direction(int p_tab, Control::TextDirection p_text_dir
 	if (tabs[p_tab].text_direction != p_text_direction) {
 		tabs.write[p_tab].text_direction = p_text_direction;
 		_shape(p_tab);
-		update();
+		queue_redraw();
 	}
 }
 
@@ -678,7 +686,7 @@ void TabBar::set_tab_language(int p_tab, const String &p_language) {
 		if (scroll_to_selected) {
 			ensure_tab_visible(current);
 		}
-		update();
+		queue_redraw();
 		update_minimum_size();
 	}
 }
@@ -690,6 +698,11 @@ String TabBar::get_tab_language(int p_tab) const {
 
 void TabBar::set_tab_icon(int p_tab, const Ref<Texture2D> &p_icon) {
 	ERR_FAIL_INDEX(p_tab, tabs.size());
+
+	if (tabs[p_tab].icon == p_icon) {
+		return;
+	}
+
 	tabs.write[p_tab].icon = p_icon;
 
 	_update_cache();
@@ -697,7 +710,7 @@ void TabBar::set_tab_icon(int p_tab, const Ref<Texture2D> &p_icon) {
 	if (scroll_to_selected) {
 		ensure_tab_visible(current);
 	}
-	update();
+	queue_redraw();
 	update_minimum_size();
 }
 
@@ -708,6 +721,11 @@ Ref<Texture2D> TabBar::get_tab_icon(int p_tab) const {
 
 void TabBar::set_tab_disabled(int p_tab, bool p_disabled) {
 	ERR_FAIL_INDEX(p_tab, tabs.size());
+
+	if (tabs[p_tab].disabled == p_disabled) {
+		return;
+	}
+
 	tabs.write[p_tab].disabled = p_disabled;
 
 	_update_cache();
@@ -715,7 +733,7 @@ void TabBar::set_tab_disabled(int p_tab, bool p_disabled) {
 	if (scroll_to_selected) {
 		ensure_tab_visible(current);
 	}
-	update();
+	queue_redraw();
 	update_minimum_size();
 }
 
@@ -726,6 +744,11 @@ bool TabBar::is_tab_disabled(int p_tab) const {
 
 void TabBar::set_tab_hidden(int p_tab, bool p_hidden) {
 	ERR_FAIL_INDEX(p_tab, tabs.size());
+
+	if (tabs[p_tab].hidden == p_hidden) {
+		return;
+	}
+
 	tabs.write[p_tab].hidden = p_hidden;
 
 	_update_cache();
@@ -733,7 +756,7 @@ void TabBar::set_tab_hidden(int p_tab, bool p_hidden) {
 	if (scroll_to_selected) {
 		ensure_tab_visible(current);
 	}
-	update();
+	queue_redraw();
 	update_minimum_size();
 }
 
@@ -744,6 +767,11 @@ bool TabBar::is_tab_hidden(int p_tab) const {
 
 void TabBar::set_tab_button_icon(int p_tab, const Ref<Texture2D> &p_icon) {
 	ERR_FAIL_INDEX(p_tab, tabs.size());
+
+	if (tabs[p_tab].right_button == p_icon) {
+		return;
+	}
+
 	tabs.write[p_tab].right_button = p_icon;
 
 	_update_cache();
@@ -751,7 +779,7 @@ void TabBar::set_tab_button_icon(int p_tab, const Ref<Texture2D> &p_icon) {
 	if (scroll_to_selected) {
 		ensure_tab_visible(current);
 	}
-	update();
+	queue_redraw();
 	update_minimum_size();
 }
 
@@ -792,7 +820,7 @@ void TabBar::_update_hover() {
 		}
 
 		if (hover_buttons != -1) {
-			update();
+			queue_redraw();
 			break;
 		}
 	}
@@ -813,7 +841,7 @@ void TabBar::_update_hover() {
 		cb_hover = hover_buttons;
 
 		if (rb_hover != rb_hover_old || cb_hover != cb_hover_old) {
-			update();
+			queue_redraw();
 		}
 	}
 }
@@ -824,14 +852,8 @@ void TabBar::_update_cache() {
 		return;
 	}
 
-	Ref<StyleBox> tab_disabled = get_theme_stylebox(SNAME("tab_disabled"));
-	Ref<StyleBox> tab_unselected = get_theme_stylebox(SNAME("tab_unselected"));
-	Ref<StyleBox> tab_selected = get_theme_stylebox(SNAME("tab_selected"));
-	Ref<Texture2D> incr = get_theme_icon(SNAME("increment"));
-	Ref<Texture2D> decr = get_theme_icon(SNAME("decrement"));
-
 	int limit = get_size().width;
-	int limit_minus_buttons = limit - incr->get_width() - decr->get_width();
+	int limit_minus_buttons = limit - theme_cache.increment_icon->get_width() - theme_cache.decrement_icon->get_width();
 
 	int w = 0;
 
@@ -915,7 +937,7 @@ void TabBar::_on_mouse_exited() {
 	highlight_arrow = -1;
 	dragging_valid_tab = false;
 
-	update();
+	queue_redraw();
 }
 
 void TabBar::add_tab(const String &p_str, const Ref<Texture2D> &p_icon) {
@@ -930,7 +952,7 @@ void TabBar::add_tab(const String &p_str, const Ref<Texture2D> &p_icon) {
 	if (scroll_to_selected) {
 		ensure_tab_visible(current);
 	}
-	update();
+	queue_redraw();
 	update_minimum_size();
 
 	if (tabs.size() == 1 && is_inside_tree()) {
@@ -949,7 +971,7 @@ void TabBar::clear_tabs() {
 	current = 0;
 	previous = 0;
 
-	update();
+	queue_redraw();
 	update_minimum_size();
 	notify_property_list_changed();
 }
@@ -979,7 +1001,7 @@ void TabBar::remove_tab(int p_idx) {
 		}
 	}
 
-	update();
+	queue_redraw();
 	update_minimum_size();
 	notify_property_list_changed();
 
@@ -1081,7 +1103,8 @@ void TabBar::drop_data(const Point2 &p_point, const Variant &p_data) {
 					hover_now += 1;
 				}
 			} else {
-				hover_now = is_layout_rtl() ^ (p_point.x < get_tab_rect(0).position.x) ? 0 : get_tab_count() - 1;
+				int x = tabs.is_empty() ? 0 : get_tab_rect(0).position.x;
+				hover_now = is_layout_rtl() ^ (p_point.x < x) ? 0 : get_tab_count() - 1;
 			}
 
 			move_tab(tab_from_id, hover_now);
@@ -1107,7 +1130,7 @@ void TabBar::drop_data(const Point2 &p_point, const Variant &p_data) {
 						hover_now += 1;
 					}
 				} else {
-					hover_now = is_layout_rtl() ^ (p_point.x < get_tab_rect(0).position.x) ? 0 : get_tab_count();
+					hover_now = tabs.is_empty() || (is_layout_rtl() ^ (p_point.x < get_tab_rect(0).position.x)) ? 0 : get_tab_count();
 				}
 
 				Tab moving_tab = from_tabs->tabs[tab_from_id];
@@ -1127,7 +1150,7 @@ void TabBar::drop_data(const Point2 &p_point, const Variant &p_data) {
 					set_current_tab(hover_now);
 				} else {
 					_update_cache();
-					update();
+					queue_redraw();
 				}
 
 				update_minimum_size();
@@ -1143,10 +1166,13 @@ void TabBar::drop_data(const Point2 &p_point, const Variant &p_data) {
 
 int TabBar::get_tab_idx_at_point(const Point2 &p_point) const {
 	int hover_now = -1;
-	for (int i = offset; i <= max_drawn_tab; i++) {
-		Rect2 rect = get_tab_rect(i);
-		if (rect.has_point(p_point)) {
-			hover_now = i;
+
+	if (!tabs.is_empty()) {
+		for (int i = offset; i <= max_drawn_tab; i++) {
+			Rect2 rect = get_tab_rect(i);
+			if (rect.has_point(p_point)) {
+				hover_now = i;
+			}
 		}
 	}
 
@@ -1155,10 +1181,15 @@ int TabBar::get_tab_idx_at_point(const Point2 &p_point) const {
 
 void TabBar::set_tab_alignment(AlignmentMode p_alignment) {
 	ERR_FAIL_INDEX(p_alignment, ALIGNMENT_MAX);
+
+	if (tab_alignment == p_alignment) {
+		return;
+	}
+
 	tab_alignment = p_alignment;
 
 	_update_cache();
-	update();
+	queue_redraw();
 }
 
 TabBar::AlignmentMode TabBar::get_tab_alignment() const {
@@ -1180,7 +1211,7 @@ void TabBar::set_clip_tabs(bool p_clip_tabs) {
 	if (scroll_to_selected) {
 		ensure_tab_visible(current);
 	}
-	update();
+	queue_redraw();
 	update_minimum_size();
 }
 
@@ -1221,59 +1252,54 @@ void TabBar::move_tab(int p_from, int p_to) {
 	if (scroll_to_selected) {
 		ensure_tab_visible(current);
 	}
-	update();
+	queue_redraw();
 	notify_property_list_changed();
 }
 
 int TabBar::get_tab_width(int p_idx) const {
 	ERR_FAIL_INDEX_V(p_idx, tabs.size(), 0);
 
-	Ref<StyleBox> tab_unselected = get_theme_stylebox(SNAME("tab_unselected"));
-	Ref<StyleBox> tab_selected = get_theme_stylebox(SNAME("tab_selected"));
-	Ref<StyleBox> tab_disabled = get_theme_stylebox(SNAME("tab_disabled"));
-	int hseparation = get_theme_constant(SNAME("h_separation"));
-
 	Ref<StyleBox> style;
 
 	if (tabs[p_idx].disabled) {
-		style = tab_disabled;
+		style = theme_cache.tab_disabled_style;
 	} else if (current == p_idx) {
-		style = tab_selected;
+		style = theme_cache.tab_selected_style;
 	} else {
-		style = tab_unselected;
+		style = theme_cache.tab_unselected_style;
 	}
 	int x = style->get_minimum_size().width;
 
 	Ref<Texture2D> tex = tabs[p_idx].icon;
 	if (tex.is_valid()) {
-		x += tex->get_width() + hseparation;
+		x += tex->get_width() + theme_cache.h_separation;
 	}
 
 	if (!tabs[p_idx].text.is_empty()) {
-		x += tabs[p_idx].size_text + hseparation;
+		x += tabs[p_idx].size_text + theme_cache.h_separation;
 	}
 
 	bool close_visible = cb_displaypolicy == CLOSE_BUTTON_SHOW_ALWAYS || (cb_displaypolicy == CLOSE_BUTTON_SHOW_ACTIVE_ONLY && p_idx == current);
 
 	if (tabs[p_idx].right_button.is_valid()) {
-		Ref<StyleBox> btn_style = get_theme_stylebox(SNAME("button_highlight"));
+		Ref<StyleBox> btn_style = theme_cache.button_hl_style;
 		Ref<Texture2D> rb = tabs[p_idx].right_button;
 
 		if (close_visible) {
 			x += btn_style->get_minimum_size().width + rb->get_width();
 		} else {
-			x += btn_style->get_margin(SIDE_LEFT) + rb->get_width() + hseparation;
+			x += btn_style->get_margin(SIDE_LEFT) + rb->get_width() + theme_cache.h_separation;
 		}
 	}
 
 	if (close_visible) {
-		Ref<StyleBox> btn_style = get_theme_stylebox(SNAME("button_highlight"));
-		Ref<Texture2D> cb = get_theme_icon(SNAME("close"));
-		x += btn_style->get_margin(SIDE_LEFT) + cb->get_width() + hseparation;
+		Ref<StyleBox> btn_style = theme_cache.button_hl_style;
+		Ref<Texture2D> cb = theme_cache.close_icon;
+		x += btn_style->get_margin(SIDE_LEFT) + cb->get_width() + theme_cache.h_separation;
 	}
 
 	if (x > style->get_minimum_size().width) {
-		x -= hseparation;
+		x -= theme_cache.h_separation;
 	}
 
 	return x;
@@ -1284,9 +1310,7 @@ void TabBar::_ensure_no_over_offset() {
 		return;
 	}
 
-	Ref<Texture2D> incr = get_theme_icon(SNAME("increment"));
-	Ref<Texture2D> decr = get_theme_icon(SNAME("decrement"));
-	int limit_minus_buttons = get_size().width - incr->get_width() - decr->get_width();
+	int limit_minus_buttons = get_size().width - theme_cache.increment_icon->get_width() - theme_cache.decrement_icon->get_width();
 
 	int prev_offset = offset;
 
@@ -1307,7 +1331,7 @@ void TabBar::_ensure_no_over_offset() {
 
 	if (prev_offset != offset) {
 		_update_cache();
-		update();
+		queue_redraw();
 	}
 }
 
@@ -1324,14 +1348,12 @@ void TabBar::ensure_tab_visible(int p_idx) {
 	if (p_idx < offset) {
 		offset = p_idx;
 		_update_cache();
-		update();
+		queue_redraw();
 
 		return;
 	}
 
-	Ref<Texture2D> incr = get_theme_icon(SNAME("increment"));
-	Ref<Texture2D> decr = get_theme_icon(SNAME("decrement"));
-	int limit_minus_buttons = get_size().width - incr->get_width() - decr->get_width();
+	int limit_minus_buttons = get_size().width - theme_cache.increment_icon->get_width() - theme_cache.decrement_icon->get_width();
 
 	int total_w = tabs[max_drawn_tab].ofs_cache - tabs[offset].ofs_cache;
 	for (int i = max_drawn_tab; i <= p_idx; i++) {
@@ -1359,7 +1381,7 @@ void TabBar::ensure_tab_visible(int p_idx) {
 
 	if (prev_offset != offset) {
 		_update_cache();
-		update();
+		queue_redraw();
 	}
 }
 
@@ -1374,6 +1396,11 @@ Rect2 TabBar::get_tab_rect(int p_tab) const {
 
 void TabBar::set_tab_close_display_policy(CloseButtonDisplayPolicy p_policy) {
 	ERR_FAIL_INDEX(p_policy, CLOSE_BUTTON_MAX);
+
+	if (cb_displaypolicy == p_policy) {
+		return;
+	}
+
 	cb_displaypolicy = p_policy;
 
 	_update_cache();
@@ -1381,7 +1408,7 @@ void TabBar::set_tab_close_display_policy(CloseButtonDisplayPolicy p_policy) {
 	if (scroll_to_selected) {
 		ensure_tab_visible(current);
 	}
-	update();
+	queue_redraw();
 	update_minimum_size();
 }
 
@@ -1391,6 +1418,11 @@ TabBar::CloseButtonDisplayPolicy TabBar::get_tab_close_display_policy() const {
 
 void TabBar::set_max_tab_width(int p_width) {
 	ERR_FAIL_COND(p_width < 0);
+
+	if (max_width == p_width) {
+		return;
+	}
+
 	max_width = p_width;
 
 	_update_cache();
@@ -1398,7 +1430,7 @@ void TabBar::set_max_tab_width(int p_width) {
 	if (scroll_to_selected) {
 		ensure_tab_visible(current);
 	}
-	update();
+	queue_redraw();
 	update_minimum_size();
 }
 
@@ -1547,6 +1579,7 @@ void TabBar::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_scroll_to_selected"), &TabBar::get_scroll_to_selected);
 	ClassDB::bind_method(D_METHOD("set_select_with_rmb", "enabled"), &TabBar::set_select_with_rmb);
 	ClassDB::bind_method(D_METHOD("get_select_with_rmb"), &TabBar::get_select_with_rmb);
+	ClassDB::bind_method(D_METHOD("clear_tabs"), &TabBar::clear_tabs);
 
 	ADD_SIGNAL(MethodInfo("tab_selected", PropertyInfo(Variant::INT, "tab")));
 	ADD_SIGNAL(MethodInfo("tab_changed", PropertyInfo(Variant::INT, "tab")));
