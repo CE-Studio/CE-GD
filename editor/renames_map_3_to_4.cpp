@@ -387,7 +387,6 @@ const char *RenamesMap3To4::gdscript_function_renames[][2] = {
 	{ "get_unit_db", "get_volume_db" }, // AudioStreamPlayer3D
 	{ "get_unit_offset", "get_progress_ratio" }, // PathFollow2D, PathFollow3D
 	{ "get_use_in_baked_light", "is_baking_navigation" }, // GridMap
-	{ "get_used_cells_by_id", "get_used_cells" }, // TileMap
 	{ "get_v_scrollbar", "get_v_scroll_bar" }, // ScrollContainer
 	{ "get_visible_name", "_get_visible_name" }, // EditorImportPlugin
 	{ "get_window_layout", "_get_window_layout" }, // EditorPlugin
@@ -721,7 +720,7 @@ const char *RenamesMap3To4::csharp_function_renames[][2] = {
 	{ "GetEndianSwap", "IsBigEndian" }, // File
 	{ "GetErrorString", "GetErrorMessage" }, // JSON
 	{ "GetFocusNeighbour", "GetFocusNeighbor" }, // Control
-	{ "GetFollowSmoothing", "GetFollowSmoothingSpeed" }, // Camera2D
+	{ "GetFollowSmoothing", "GetPositionSmoothingSpeed" }, // Camera2D
 	{ "GetFontTypes", "GetFontTypeList" }, // Theme
 	{ "GetFrameColor", "GetColor" }, // ColorRect
 	{ "GetGlobalRateScale", "GetPlaybackSpeedScale" }, // AudioServer
@@ -795,7 +794,6 @@ const char *RenamesMap3To4::csharp_function_renames[][2] = {
 	{ "GetUnitDb", "GetVolumeDb" }, // AudioStreamPlayer3D
 	{ "GetUnitOffset", "GetProgressRatio" }, // PathFollow2D, PathFollow3D
 	{ "GetUseInBakedLight", "IsBakingNavigation" }, // GridMap
-	{ "GetUsedCellsById", "GetUsedCells" }, // TileMap
 	{ "GetVScrollbar", "GetVScrollBar" }, // ScrollContainer
 	{ "GetVisibleName", "_GetVisibleName" }, // EditorImportPlugin
 	{ "GetWindowLayout", "_GetWindowLayout" }, // EditorPlugin
@@ -907,12 +905,12 @@ const char *RenamesMap3To4::csharp_function_renames[][2] = {
 	{ "SetDepthBiasEnable", "SetDepthBiasEnabled" }, // RDPipelineRasterizationState
 	{ "SetDevice", "SetOutputDevice" }, // AudioServer
 	{ "SetDoubleclick", "SetDoubleClick" }, // InputEventMouseButton
-	{ "SetEnableFollowSmoothing", "SetFollowSmoothingEnabled" }, // Camera2D
+	{ "SetEnableFollowSmoothing", "SetPositionSmoothingEnabled" }, // Camera2D
 	{ "SetEnabledFocusMode", "SetFocusMode" }, // BaseButton
 	{ "SetEndianSwap", "SetBigEndian" }, // File
 	{ "SetExpandToTextLength", "SetExpandToTextLengthEnabled" }, // LineEdit
 	{ "SetFocusNeighbour", "SetFocusNeighbor" }, // Control
-	{ "SetFollowSmoothing", "SetFollowSmoothingSpeed" }, // Camera2D
+	{ "SetFollowSmoothing", "SetPositionSmoothingSpeed" }, // Camera2D
 	{ "SetFrameColor", "SetColor" }, // ColorRect
 	{ "SetGlobalRateScale", "SetPlaybackSpeedScale" }, // AudioServer
 	{ "SetGravityDistanceScale", "SetGravityPointDistanceScale" }, // Area2D
@@ -1122,7 +1120,7 @@ const char *RenamesMap3To4::gdscript_properties_renames[][2] = {
 	{ "selectedframe", "selected_frame" }, // Theme
 	{ "size_override_stretch", "size_2d_override_stretch" }, // SubViewport
 	{ "slips_on_slope", "slide_on_slope" }, // SeparationRayShape2D
-	{ "smoothing_enabled", "follow_smoothing_enabled" }, // Camera2D
+	{ "smoothing_enabled", "position_smoothing_enabled" }, // Camera2D
 	{ "smoothing_speed", "position_smoothing_speed" }, // Camera2D
 	{ "ss_reflections_depth_tolerance", "ssr_depth_tolerance" }, // Environment
 	{ "ss_reflections_enabled", "ssr_enabled" }, // Environment
@@ -1215,8 +1213,8 @@ const char *RenamesMap3To4::csharp_properties_renames[][2] = {
 	{ "Selectedframe", "SelectedFrame" }, // Theme
 	{ "SizeOverrideStretch", "Size2dOverrideStretch" }, // SubViewport
 	{ "SlipsOnSlope", "SlideOnSlope" }, // SeparationRayShape2D
-	{ "SmoothingEnabled", "FollowSmoothingEnabled" }, // Camera2D
-	{ "SmoothingSpeed", "FollowSmoothingSpeed" }, // Camera2D
+	{ "SmoothingEnabled", "PositionSmoothingEnabled" }, // Camera2D
+	{ "SmoothingSpeed", "PositionSmoothingSpeed" }, // Camera2D
 	{ "SsReflectionsDepthTolerance", "SsrDepthTolerance" }, // Environment
 	{ "SsReflectionsEnabled", "SsrEnabled" }, // Environment
 	{ "SsReflectionsFadeIn", "SsrFadeIn" }, // Environment
