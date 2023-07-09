@@ -10,10 +10,6 @@ if TYPE_CHECKING:
     from SCons import Environment
 
 
-def is_active():
-    return True
-
-
 def get_name():
     return "LinuxBSD"
 
@@ -56,6 +52,16 @@ def get_opts():
     ]
 
 
+def get_doc_classes():
+    return [
+        "EditorExportPlatformLinuxBSD",
+    ]
+
+
+def get_doc_path():
+    return "doc_classes"
+
+
 def get_flags():
     return [
         ("arch", detect_arch()),
@@ -70,7 +76,7 @@ def configure(env: "Environment"):
             'Unsupported CPU architecture "%s" for Linux / *BSD. Supported architectures are: %s.'
             % (env["arch"], ", ".join(supported_arches))
         )
-        sys.exit()
+        sys.exit(255)
 
     ## Build type
 
@@ -208,7 +214,7 @@ def configure(env: "Environment"):
             "freetype, libpng, zlib, graphite, harfbuzz.\n"
             "Please specify `builtin_<name>=no` for all of them, or none."
         )
-        sys.exit()
+        sys.exit(255)
 
     if not env["builtin_freetype"]:
         env.ParseConfig("pkg-config freetype2 --cflags --libs")
@@ -229,10 +235,14 @@ def configure(env: "Environment"):
         env.ParseConfig("pkg-config libenet --cflags --libs")
 
     if not env["builtin_squish"]:
-        env.ParseConfig("pkg-config libsquish --cflags --libs")
+        # libsquish doesn't reliably install its .pc file, so some distros lack it.
+        env.Append(LIBS=["libsquish"])
 
     if not env["builtin_zstd"]:
         env.ParseConfig("pkg-config libzstd --cflags --libs")
+
+    if env["brotli"] and not env["builtin_brotli"]:
+        env.ParseConfig("pkg-config libbrotlicommon libbrotlidec --cflags --libs")
 
     # Sound and video libraries
     # Keep the order as it triggers chained dependencies (ogg needed by others, etc.)
@@ -307,11 +317,12 @@ def configure(env: "Environment"):
         if not env["use_sowrap"]:
             if os.system("pkg-config --exists libpulse") == 0:  # 0 means found
                 env.ParseConfig("pkg-config libpulse --cflags --libs")
-                env.Append(CPPDEFINES=["PULSEAUDIO_ENABLED", "_REENTRANT"])
+                env.Append(CPPDEFINES=["PULSEAUDIO_ENABLED"])
             else:
                 print("Warning: PulseAudio development libraries not found. Disabling the PulseAudio audio driver.")
                 env["pulseaudio"] = False
-        env.Append(CPPDEFINES=["PULSEAUDIO_ENABLED", "_REENTRANT"])
+        else:
+            env.Append(CPPDEFINES=["PULSEAUDIO_ENABLED", "_REENTRANT"])
 
     if env["dbus"]:
         if not env["use_sowrap"]:
@@ -451,6 +462,9 @@ def configure(env: "Environment"):
                 env.Append(LINKFLAGS=["-T", "platform/linuxbsd/pck_embed.ld"])
             else:
                 env.Append(LINKFLAGS=["-T", "platform/linuxbsd/pck_embed.legacy.ld"])
+
+    if platform.system() == "FreeBSD":
+        env.Append(LINKFLAGS=["-lkvm"])
 
     ## Cross-compilation
     # TODO: Support cross-compilation on architectures other than x86.
