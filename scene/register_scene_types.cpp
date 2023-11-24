@@ -74,6 +74,7 @@
 #include "scene/animation/animation_blend_space_1d.h"
 #include "scene/animation/animation_blend_space_2d.h"
 #include "scene/animation/animation_blend_tree.h"
+#include "scene/animation/animation_mixer.h"
 #include "scene/animation/animation_node_state_machine.h"
 #include "scene/animation/animation_player.h"
 #include "scene/animation/animation_tree.h"
@@ -159,7 +160,6 @@
 #include "scene/resources/convex_polygon_shape_3d.h"
 #include "scene/resources/curve_texture.h"
 #include "scene/resources/cylinder_shape_3d.h"
-#include "scene/resources/default_theme/default_theme.h"
 #include "scene/resources/environment.h"
 #include "scene/resources/font.h"
 #include "scene/resources/gradient.h"
@@ -173,6 +173,7 @@
 #include "scene/resources/mesh_texture.h"
 #include "scene/resources/multimesh.h"
 #include "scene/resources/navigation_mesh.h"
+#include "scene/resources/navigation_mesh_source_geometry_data_2d.h"
 #include "scene/resources/navigation_mesh_source_geometry_data_3d.h"
 #include "scene/resources/navigation_polygon.h"
 #include "scene/resources/packed_scene.h"
@@ -211,6 +212,7 @@
 #include "scene/resources/text_line.h"
 #include "scene/resources/text_paragraph.h"
 #include "scene/resources/texture.h"
+#include "scene/resources/texture_rd.h"
 #include "scene/resources/theme.h"
 #include "scene/resources/tile_set.h"
 #include "scene/resources/video_stream.h"
@@ -439,6 +441,7 @@ void register_scene_types() {
 	GDREGISTER_CLASS(HSplitContainer);
 	GDREGISTER_CLASS(VSplitContainer);
 
+	GDREGISTER_CLASS(GraphElement);
 	GDREGISTER_CLASS(GraphNode);
 	GDREGISTER_CLASS(GraphEdit);
 
@@ -452,8 +455,6 @@ void register_scene_types() {
 #endif
 
 	/* REGISTER ANIMATION */
-
-	GDREGISTER_CLASS(AnimationPlayer);
 	GDREGISTER_CLASS(Tween);
 	GDREGISTER_ABSTRACT_CLASS(Tweener);
 	GDREGISTER_CLASS(PropertyTweener);
@@ -461,6 +462,8 @@ void register_scene_types() {
 	GDREGISTER_CLASS(CallbackTweener);
 	GDREGISTER_CLASS(MethodTweener);
 
+	GDREGISTER_ABSTRACT_CLASS(AnimationMixer);
+	GDREGISTER_CLASS(AnimationPlayer);
 	GDREGISTER_CLASS(AnimationTree);
 	GDREGISTER_CLASS(AnimationNode);
 	GDREGISTER_CLASS(AnimationRootNode);
@@ -675,6 +678,8 @@ void register_scene_types() {
 	GDREGISTER_CLASS(VisualShaderNodeTexture3DParameter);
 	GDREGISTER_CLASS(VisualShaderNodeCubemapParameter);
 	GDREGISTER_CLASS(VisualShaderNodeLinearSceneDepth);
+	GDREGISTER_CLASS(VisualShaderNodeWorldPositionFromDepth);
+	GDREGISTER_CLASS(VisualShaderNodeScreenNormalWorldSpace);
 	GDREGISTER_CLASS(VisualShaderNodeIf);
 	GDREGISTER_CLASS(VisualShaderNodeSwitch);
 	GDREGISTER_CLASS(VisualShaderNodeFresnel);
@@ -688,6 +693,7 @@ void register_scene_types() {
 	GDREGISTER_CLASS(VisualShaderNodeProximityFade);
 	GDREGISTER_CLASS(VisualShaderNodeRandomRange);
 	GDREGISTER_CLASS(VisualShaderNodeRemap);
+	GDREGISTER_CLASS(VisualShaderNodeRotationByAxis);
 	GDREGISTER_ABSTRACT_CLASS(VisualShaderNodeVarying);
 	GDREGISTER_CLASS(VisualShaderNodeVaryingSetter);
 	GDREGISTER_CLASS(VisualShaderNodeVaryingGetter);
@@ -887,6 +893,14 @@ void register_scene_types() {
 	GDREGISTER_CLASS(PlaceholderCubemap);
 	GDREGISTER_CLASS(PlaceholderCubemapArray);
 
+	// These classes are part of renderer_rd
+	GDREGISTER_CLASS(Texture2DRD);
+	GDREGISTER_ABSTRACT_CLASS(TextureLayeredRD);
+	GDREGISTER_CLASS(Texture2DArrayRD);
+	GDREGISTER_CLASS(TextureCubemapRD);
+	GDREGISTER_CLASS(TextureCubemapArrayRD);
+	GDREGISTER_CLASS(Texture3DRD);
+
 	GDREGISTER_CLASS(Animation);
 	GDREGISTER_CLASS(AnimationLibrary);
 
@@ -944,6 +958,7 @@ void register_scene_types() {
 	GDREGISTER_CLASS(PathFollow2D);
 
 	GDREGISTER_CLASS(NavigationMesh);
+	GDREGISTER_CLASS(NavigationMeshSourceGeometryData2D);
 	GDREGISTER_CLASS(NavigationMeshSourceGeometryData3D);
 	GDREGISTER_CLASS(NavigationPolygon);
 	GDREGISTER_CLASS(NavigationRegion2D);
@@ -1205,6 +1220,7 @@ void unregister_scene_types() {
 	PhysicalSkyMaterial::cleanup_shader();
 	PanoramaSkyMaterial::cleanup_shader();
 	ProceduralSkyMaterial::cleanup_shader();
+	FogMaterial::cleanup_shader();
 #endif // _3D_DISABLED
 
 	ParticleProcessMaterial::finish_shaders();
